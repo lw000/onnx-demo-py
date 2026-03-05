@@ -96,11 +96,13 @@ python belt_conveyor_slip_prediction.py
 
 ### 2. 使用 Sklearn 模型预测
 
+**注意**: 当前代码未保存 `.pkl` 文件，如需使用请自行添加保存逻辑。
+
 ```python
 import joblib
 import numpy as np
 
-# 加载模型（需要先保存）
+# 加载模型（需要先修改代码保存 .pkl 文件）
 model = joblib.load('belt_conveyor_slip_model.pkl')
 
 # 准备输入数据 [current, speed_diff, vibration, temperature]
@@ -114,7 +116,49 @@ print(f"预测状态: {'打滑' if prediction == 1 else '正常'}")
 print(f"打滑概率: {probability[1]:.2%}")
 ```
 
-### 3. 使用 ONNX 模型预测
+### 3. 实时预测示例 (Python Sklearn)
+
+训练脚本中包含实时预测示例，运行以下命令即可查看：
+
+```bash
+python belt_conveyor_slip_prediction.py
+```
+
+输出示例：
+
+```
+==================================================
+【实时监测】皮带机状态诊断示例
+==================================================
+
+正常工况:
+  输入特征: [100.   0.02  2.5  62. ]
+  输入含义: 电流=100.0A, 速度差=0.02m/s, 振动=2.5mm/s, 温度=62.0°C
+  ✓ 预测结果: 运行正常
+  📊 正常概率: 98.50%
+
+打滑工况:
+  输入特征: [135.    0.25  9.   88. ]
+  输入含义: 电流=135.0A, 速度差=0.25m/s, 振动=9.0mm/s, 温度=88.0°C
+  ⚠️  预测结果: 检测到打滑！
+  📊 故障概率: 96.30%
+  🚨 预警等级: 严重
+```
+
+**三种工况对比**:
+
+| 工况 | 电流(A) | 速度差(m/s) | 振动(mm/s) | 温度(°C) | 预测结果 |
+|------|---------|-------------|------------|----------|----------|
+| 正常 | 100 | 0.02 | 2.5 | 62 | 正常 |
+| 打滑 | 135 | 0.25 | 9.0 | 88 | 打滑 |
+| 临界 | 115 | 0.12 | 5.0 | 72 | 趋势预警 |
+
+**预警等级说明**:
+- 🚨 **严重**: 故障概率 > 90%
+- ⚡ **较高**: 故障概率 70% - 90%
+- 💡 **一般**: 故障概率 < 70%
+
+### 4. 使用 ONNX 模型预测
 
 ```python
 import onnxruntime as ort
@@ -294,11 +338,46 @@ if __name__ == "__main__":
 
 ---
 
+## ONNX 导出优化
+
+### 禁用 ZipMap 提升兼容性
+
+当前代码已配置禁用 ZipMap，提升 ONNX 模型的跨平台兼容性：
+
+```python
+# 关键配置
+options = {type(model): {'zipmap': False}}
+
+onnx_model = convert_sklearn(
+    model,
+    initial_types=initial_type,
+    target_opset=12,
+    options=options  # 强制使用 tensor 输出
+)
+```
+
+**优点**:
+- 避免 ZipMap 输出格式在 C++/嵌入式设备上的解析问题
+- 输出为标准张量格式，兼容性更强
+- 减少模型复杂度，提升推理速度
+
+### 模型验证
+
+导出时自动验证模型结构：
+
+```python
+# 验证模型
+onnx.checker.check_model(onnx_model)
+print("✅ ONNX 模型验证通过")
+```
+
+---
+
 ## 模型验证
 
 ### Sklearn vs ONNX 一致性验证
 
-如果训练脚本保存了 Sklearn 模型，可以验证一致性：
+**注意**: 当前训练脚本未保存 `.pkl` 文件，如需验证一致性，请先添加保存逻辑。
 
 ```python
 import joblib
@@ -455,6 +534,145 @@ public class BeltSlipDetector {
 
 ---
 
+## 实时预测示例
+
+### Python 完整示例
+
+```python
+import onnxruntime as ort
+import numpy as np
+
+def realtime_prediction():
+    """实时预测示例"""
+
+    # 加载 ONNX 模型
+    session = ort.InferenceSession('conveyor_slip_model.onnx')
+
+    # 示例数据
+    test_cases = {
+        "正常工况": np.array([[100, 0.02, 2.5, 62]]),
+        "打滑工况": np.array([[135, 0.25, 9.0, 88]]),
+        "临界状态": np.array([[115, 0.12, 5.0, 72]])
+    }
+
+    for case_name, data in test_cases.items():
+        data = data.astype(np.float32)
+
+        # 运行推理
+        outputs = session.run(None, {'float_input': data})
+        label = int(outputs[0][0])
+        proba = outputs[1][0]
+
+        # 输出结果
+        print(f"\n{case_name}:")
+        print(f"  输入: {data[0]}")
+        print(f"  预测: {'打滑' if label == 1 else '正常'}")
+        print(f"  概率: {proba[label]:.2%}")
+
+        # 预警等级
+        if label == 1:
+            if proba[1] > 0.9:
+                print(f"  预警等级: 严重")
+            elif proba[1] > 0.7:
+                print(f"  预警等级: 较高")
+            else:
+                print(f"  预警等级: 一般")
+
+# 运行
+realtime_prediction()
+```
+
+### C++ 完整示例
+
+```cpp
+#include <onnxruntime_cxx_api.h>
+#include <iostream>
+#include <vector>
+
+class BeltSlipDetector {
+private:
+    Ort::Session session;
+    Ort::Env env;
+
+public:
+    BeltSlipDetector(const std::string& model_path)
+        : env(ORT_LOGGING_LEVEL_WARNING, "BeltSlip"),
+          session(env, model_path.c_str(), Ort::SessionOptions{}) {
+        std::cout << "✅ 模型加载成功" << std::endl;
+    }
+
+    void predict(float current, float speed_diff, float vibration, float temperature) {
+        // 准备输入
+        std::vector<float> input_data = {current, speed_diff, vibration, temperature};
+        std::vector<int64_t> input_shape = {1, 4};
+
+        // 创建张量
+        Ort::MemoryInfo memory_info = Ort::MemoryInfo::CreateCpu(
+            OrtArenaAllocator, OrtMemTypeDefault);
+        Ort::Value input_tensor = Ort::Value::CreateTensor<float>(
+            memory_info, input_data.data(), input_data.size(),
+            input_shape.data(), input_shape.size());
+
+        // 运行推理
+        const char* input_names[] = {"float_input"};
+        const char* output_names[] = {"output_label", "output_probability"};
+
+        auto outputs = session.run(
+            Ort::RunOptions{nullptr},
+            input_names, &input_tensor, 1,
+            output_names, 2
+        );
+
+        // 获取结果
+        int64_t label = outputs[0].GetTensorMutableData<int64_t>()[0];
+        float* proba = outputs[1].GetTensorMutableData<float>();
+
+        // 输出
+        std::cout << "\n=== 预测结果 ===" << std::endl;
+        std::cout << "输入: 电流=" << current << "A, 速度差=" << speed_diff
+                  << "m/s, 振动=" << vibration << "mm/s, 温度=" << temperature << "°C" << std::endl;
+        std::cout << "预测: " << (label == 1 ? "打滑" : "正常") << std::endl;
+        std::cout << "正常概率: " << proba[0] * 100 << "%" << std::endl;
+        std::cout << "打滑概率: " << proba[1] * 100 << "%" << std::endl;
+
+        // 预警等级
+        if (label == 1) {
+            if (proba[1] > 0.9f) {
+                std::cout << "预警等级: 严重 🚨" << std::endl;
+            } else if (proba[1] > 0.7f) {
+                std::cout << "预警等级: 较高 ⚡" << std::endl;
+            } else {
+                std::cout << "预警等级: 一般 💡" << std::endl;
+            }
+        }
+    }
+};
+
+int main() {
+    try {
+        BeltSlipDetector detector("conveyor_slip_model.onnx");
+
+        // 测试不同工况
+        std::cout << "\n【测试1: 正常工况】" << std::endl;
+        detector.predict(100, 0.02f, 2.5f, 62);
+
+        std::cout << "\n【测试2: 打滑工况】" << std::endl;
+        detector.predict(135, 0.25f, 9.0f, 88);
+
+        std::cout << "\n【测试3: 临界状态】" << std::endl;
+        detector.predict(115, 0.12f, 5.0f, 72);
+
+    } catch (const Ort::Exception& e) {
+        std::cerr << "ONNX Runtime 错误: " << e.what() << std::endl;
+        return 1;
+    }
+
+    return 0;
+}
+```
+
+---
+
 ## 高级配置
 
 ### 参数调整
@@ -490,7 +708,7 @@ df['vibration_trend'] = df['vibration'].rolling(10).mean()  # 振动趋势
 
 ### 使用 Pipeline
 
-建议使用 Pipeline 便于 ONNX 转换：
+**重要**: 如果使用 Pipeline，需要更新 `export_to_onnx` 函数的 options 配置：
 
 ```python
 from sklearn.pipeline import Pipeline
@@ -506,6 +724,43 @@ model_pipeline = Pipeline([
 ])
 
 model_pipeline.fit(X_train, y_train)
+
+# 导出时需要调整 options
+from skl2onnx import convert_sklearn
+from skl2onnx.common.data_types import FloatTensorType
+
+initial_type = [('float_input', FloatTensorType([None, 4]))]
+
+# Pipeline 模型的 options 配置
+options = {
+    'zipmap': False,  # 禁用 ZipMap
+    'nocl': True      # 禁用类标签（某些情况）
+}
+
+onnx_model = convert_sklearn(
+    model_pipeline,
+    initial_types=initial_type,
+    target_opset=12,
+    options=options
+)
+```
+
+### 添加模型保存逻辑
+
+如果需要保存 Sklearn 模型用于验证一致性，可以修改训练脚本：
+
+```python
+import joblib
+
+# 在 train_model 函数最后添加
+def train_model(df):
+    # ... 现有训练代码 ...
+
+    # 保存 Sklearn 模型
+    joblib.dump(model, 'belt_conveyor_slip_model.pkl')
+    print("✅ Sklearn 模型已保存至: belt_conveyor_slip_model.pkl")
+
+    return model, features
 ```
 
 ---

@@ -1,14 +1,15 @@
 # 工业设备预测模型集合
 
-基于机器学习的工业设备监测系统，包含温度预测、泵故障预测和压缩机泄漏检测三个核心模型，均支持 ONNX 格式跨平台部署。
+基于机器学习的工业设备监测系统，包含温度预测、泵故障预测、压缩机泄漏检测和采煤机故障预测四个核心模型，均支持 ONNX 格式跨平台部署。
 
 ## 项目概述
 
-本项目提供了三个独立的工业设备预测模型，用于不同场景的设备监测和故障诊断：
+本项目提供了四个独立的工业设备预测模型，用于不同场景的设备监测和故障诊断：
 
 1. **温度预测模型** (`advanced_temp_model.py`) - 使用 Gradient Boosting 回归预测设备温度
 2. **泵故障预测模型** (`pump_failure_prediction.py`) - 使用随机森林分类预测泵设备故障状态
 3. **压缩机泄漏预测模型** (`compressor_leakage_prediction.py`) - 使用随机森林分类检测空压系统管网泄漏
+4. **采煤机故障预测模型** (`shearer_cutting_unit_failure_prediction.py`) - 使用随机森林分类预测采煤机截割部故障
 
 所有模型都采用 sklearn 管道构建，并转换为 ONNX 格式以便于跨平台部署。
 
@@ -23,7 +24,7 @@
 ## 安装依赖
 
 ```bash
-pip install numpy scikit-learn onnx skl2onnx joblib pandas
+pip install numpy scikit-learn onnx skl2onnx joblib pandas matplotlib seaborn
 ```
 
 如需验证 ONNX 模型，还需安装：
@@ -47,11 +48,17 @@ onnx-demo/
 ├── compressor_leakage_detector.onnx             # ONNX 格式泄漏检测器 (836 KB)
 ├── compressor_leakage_detector_sklearn.pkl      # Sklearn 原始泄漏检测器 (1.77 MB)
 │
+├── shearer_cutting_unit_failure_prediction.py   # 采煤机故障预测模型训练脚本
+├── shearer_cutting_unit_failure_detector.onnx   # ONNX 格式故障检测器 (99 KB)
+├── shearer_cutting_unit_failure_detector_sklearn.pkl  # Sklearn 原始故障检测器 (256 KB)
+│
 ├── simple_temp_model.py                        # 简单温度预测示例
 ├── simple_temp_model.onnx                      # 简单 ONNX 模型
 │
 ├── TEMP_MODEL_README.md                        # 温度预测模型详细文档
 ├── PUMP_MODEL_README.md                        # 泵故障预测模型详细文档
+├── COMPRESSOR_MODEL_README.md                  # 压缩机泄漏预测模型详细文档
+├── SHEARER_MODEL_README.md                     # 采煤机故障预测模型详细文档
 └── README.md                                  # 本文档
 ```
 
@@ -134,6 +141,33 @@ python compressor_leakage_prediction.py
 
 ---
 
+### 4. 采煤机故障预测模型
+
+**文件**: `shearer_cutting_unit_failure_prediction.py`
+
+**用途**: 预测采煤机截割部故障状态
+
+**特征** (5 个):
+- vibration (mm/s): 振动值
+- temperature (°C): 温度
+- current (A): 电流
+- pressure (bar): 液压
+- oil_quality (%): 油液质量
+
+**模型**: Random Forest Classifier
+- 100 棵决策树
+- 二分类（正常/故障）
+- 准确率: ~99%
+
+**运行**:
+```bash
+python shearer_cutting_unit_failure_prediction.py
+```
+
+**详细文档**: [SHEARER_MODEL_README.md](SHEARER_MODEL_README.md)
+
+---
+
 ## 快速开始
 
 ### 训练所有模型
@@ -147,6 +181,9 @@ python pump_failure_prediction.py
 
 # 训练压缩机泄漏预测模型
 python compressor_leakage_prediction.py
+
+# 训练采煤机故障预测模型
+python shearer_cutting_unit_failure_prediction.py
 ```
 
 ### 使用模型预测
@@ -206,18 +243,37 @@ print(f"预测状态: {status}")
 print(f"概率: 正常={probabilities[0]:.2%}, 泄漏={probabilities[1]:.2%}")
 ```
 
+#### 采煤机故障预测
+
+```python
+import onnxruntime as ort
+import numpy as np
+
+session = ort.InferenceSession('shearer_cutting_unit_failure_detector.onnx')
+
+input_data = np.array([[12.5, 95.0, 180.0, 220.0, 40.0]]).astype(np.float32)
+
+outputs = session.run(None, {'float_input': input_data})
+label_idx = int(outputs[0][0])
+probabilities = outputs[1][0]
+
+status = "故障" if label_idx == 1 else "正常"
+print(f"预测状态: {status}")
+print(f"概率: 正常={probabilities[0]:.2%}, 故障={probabilities[1]:.2%}")
+```
+
 ## 模型对比
 
-| 特性 | 温度预测 | 泵故障预测 | 泄漏检测 |
-|------|---------|-----------|---------|
-| 模型类型 | 回归 | 分类 | 分类 |
-| 任务 | 温度预测 | 故障诊断 | 泄漏检测 |
-| 算法 | Gradient Boosting | Random Forest | Random Forest |
-| 特征数量 | 8 | 4 | 3 |
-| 样本数量 | 5000 | 10000 | 10000 |
-| 输出 | 连续数值 | 类别标签 | 类别标签 |
-| R²/准确率 | ~0.98 | ~97% | ~95% |
-| ONNX 大小 | 386 KB | 307 KB | 836 KB |
+| 特性 | 温度预测 | 泵故障预测 | 泄漏检测 | 采煤机故障 |
+|------|---------|-----------|---------|-----------|
+| 模型类型 | 回归 | 分类 | 分类 | 分类 |
+| 任务 | 温度预测 | 故障诊断 | 泄漏检测 | 故障诊断 |
+| 算法 | Gradient Boosting | Random Forest | Random Forest | Random Forest |
+| 特征数量 | 8 | 4 | 3 | 5 |
+| 样本数量 | 5000 | 10000 | 10000 | 10000 |
+| 输出 | 连续数值 | 类别标签 | 类别标签 | 类别标签 |
+| R²/准确率 | ~0.98 | ~97% | ~95% | ~99% |
+| ONNX 大小 | 386 KB | 307 KB | 836 KB | 99 KB |
 
 ## 部署选项
 
@@ -337,6 +393,18 @@ print(f"批量预测 {len(predictions)} 个样本")
 | 训练样本 | 8000 |
 | 测试样本 | 2000 |
 
+### 采煤机故障预测模型
+
+| 指标 | 值 |
+|------|-----|
+| 准确率 | ~99% |
+| 精确率 | ~99% |
+| 召回率 | ~99% |
+| F1 分数 | ~99% |
+| 特征数量 | 5 |
+| 训练样本 | 8000 |
+| 测试样本 | 2000 |
+
 ## 实际应用场景
 
 ### 温度预测模型
@@ -359,6 +427,13 @@ print(f"批量预测 {len(predictions)} 个样本")
 - 能耗异常监测
 - 供气效率优化
 - 安全风险预警
+
+### 采煤机故障预测模型
+
+- 采煤机截割部故障诊断
+- 设备健康监测
+- 预测性维护
+- 生产安全保障
 
 ## 故障排查
 
@@ -404,6 +479,8 @@ pip install onnxruntime-gpu  # GPU 版本
 
 - [温度预测模型详细文档](TEMP_MODEL_README.md) - 包含完整的 API 文档、示例代码和配置说明
 - [泵故障预测模型详细文档](PUMP_MODEL_README.md) - 包含完整的 API 文档、示例代码和配置说明
+- [压缩机泄漏预测模型详细文档](COMPRESSOR_MODEL_README.md) - 包含完整的 API 文档、示例代码和配置说明
+- [采煤机故障预测模型详细文档](SHEARER_MODEL_README.md) - 包含完整的 API 文档、示例代码和配置说明
 
 ## 开发指南
 

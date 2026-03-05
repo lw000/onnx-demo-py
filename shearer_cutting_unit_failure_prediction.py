@@ -13,8 +13,12 @@ from skl2onnx import convert_sklearn
 from skl2onnx.common.data_types import FloatTensorType
 import joblib
 
+# 设置 matplotlib 支持中文显示
+plt.rcParams['font.sans-serif'] = ['SimHei', 'Microsoft YaHei', 'Arial Unicode MS', 'DejaVu Sans']
+plt.rcParams['axes.unicode_minus'] = False  # 解决负号显示问题
+
 # -----------------------------
-# 2. 模拟煤矿设备数据集
+# 2. 模拟煤矿设备（采煤机截割部）数据集
 # 在实际应用中，这里应该是从数据库或传感器读取的真实数据
 # -----------------------------
 np.random.seed(42)
@@ -117,6 +121,7 @@ plt.figure(figsize=(10, 6))
 sns.barplot(data=feature_importance_df, x='Importance', y='Feature')
 plt.title('特征重要性分析 (采煤机截割部故障预测)')
 plt.xlabel('重要性得分')
+plt.tight_layout()
 plt.show()
 
 # -----------------------------

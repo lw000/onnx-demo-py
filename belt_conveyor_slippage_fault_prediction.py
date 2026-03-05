@@ -5,10 +5,16 @@ from sklearn.model_selection import train_test_split
 from sklearn.metrics import classification_report, confusion_matrix, accuracy_score
 from sklearn.preprocessing import StandardScaler
 from sklearn.pipeline import Pipeline
+import matplotlib.pyplot as plt
+import seaborn as sns
 import onnx
 from skl2onnx import convert_sklearn
 from skl2onnx.common.data_types import FloatTensorType
 import joblib
+
+# 设置 matplotlib 支持中文显示
+plt.rcParams['font.sans-serif'] = ['SimHei', 'Microsoft YaHei', 'Arial Unicode MS', 'DejaVu Sans']
+plt.rcParams['axes.unicode_minus'] = False  # 解决负号显示问题
 
 # -------------------------------------------------
 # 1. 模拟皮带机数据 (Belt Conveyor Simulation)
@@ -101,6 +107,16 @@ print(feature_importance_df)
 cm = confusion_matrix(y_test, y_pred)
 print("\n混淆矩阵:")
 print(cm)
+
+# 可视化混淆矩阵
+plt.figure(figsize=(6, 4))
+sns.heatmap(cm, annot=True, fmt='d', cmap='Blues',
+            xticklabels=['正常', '故障'], yticklabels=['正常', '故障'])
+plt.ylabel('真实标签')
+plt.xlabel('预测标签')
+plt.title('混淆矩阵 - 皮带机故障预测')
+plt.tight_layout()
+plt.show()
 
 # -------------------------------------------------
 # 5. 保存模型为 ONNX 格式

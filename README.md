@@ -4,13 +4,14 @@
 
 ## 项目概述
 
-本项目提供了五个独立的工业设备预测模型，用于不同场景的设备监测和故障诊断：
+本项目提供了六个独立的工业设备预测模型，用于不同场景的设备监测和故障诊断：
 
 1. **温度预测模型** (`advanced_temp_model.py`) - 使用 Gradient Boosting 回归预测设备温度
 2. **泵故障预测模型** (`pump_failure_prediction.py`) - 使用随机森林分类预测泵设备故障状态
 3. **压缩机泄漏预测模型** (`compressor_leakage_prediction.py`) - 使用随机森林分类检测空压系统管网泄漏
 4. **采煤机故障预测模型** (`shearer_cutting_unit_failure_prediction.py`) - 使用随机森林分类预测采煤机截割部故障
 5. **皮带机打滑故障预测模型** (`belt_conveyor_slippage_fault_prediction.py`) - 使用随机森林分类预测皮带输送机打滑、卡阻等故障
+6. **皮带机打滑预测模型** (`belt_conveyor_slip_prediction.py`) - 使用随机森林分类预测皮带机打滑状态
 
 所有模型都采用 sklearn 管道构建，并转换为 ONNX 格式以便于跨平台部署。
 
@@ -57,6 +58,9 @@ onnx-demo/
 ├── belt_conveyor_slippage_fault_detector.onnx   # ONNX 格式故障检测器
 ├── belt_conveyor_slippage_fault_detector_sklearn.pkl  # Sklearn 原始故障检测器
 │
+├── belt_conveyor_slip_prediction.py            # 皮带机打滑预测模型训练脚本
+├── conveyor_slip_model.onnx                    # ONNX 格式打滑预测模型
+│
 ├── simple_temp_model.py                        # 简单温度预测示例
 ├── simple_temp_model.onnx                      # 简单 ONNX 模型
 │
@@ -65,6 +69,7 @@ onnx-demo/
 ├── COMPRESSOR_MODEL_README.md                  # 压缩机泄漏预测模型详细文档
 ├── SHEARER_MODEL_README.md                     # 采煤机故障预测模型详细文档
 ├── BELT_CONVEYOR_MODEL_README.md              # 皮带机故障预测模型详细文档
+├── BELT_CONVEYOR_SLIP_README.md              # 皮带机打滑预测模型详细文档
 └── README.md                                  # 本文档
 ```
 
@@ -201,6 +206,32 @@ python belt_conveyor_slippage_fault_prediction.py
 
 ---
 
+### 6. 皮带机打滑预测模型
+
+**文件**: `belt_conveyor_slip_prediction.py`
+
+**用途**: 预测皮带输送机的打滑状态
+
+**特征** (4 个):
+- current (A): 电机电流
+- speed_diff (m/s): 头尾速度差（打滑的核心指标）
+- vibration (mm/s): 电机振动
+- temperature (°C): 轴承温度
+
+**模型**: Random Forest Classifier
+- 100 棵决策树
+- 二分类（正常/打滑）
+- 准确率: ~98%
+
+**运行**:
+```bash
+python belt_conveyor_slip_prediction.py
+```
+
+**详细文档**: [BELT_CONVEYOR_SLIP_README.md](BELT_CONVEYOR_SLIP_README.md)
+
+---
+
 ## 快速开始
 
 ### 训练所有模型
@@ -220,6 +251,9 @@ python shearer_cutting_unit_failure_prediction.py
 
 # 训练皮带机打滑故障预测模型
 python belt_conveyor_slippage_fault_prediction.py
+
+# 训练皮带机打滑预测模型
+python belt_conveyor_slip_prediction.py
 ```
 
 ### 使用模型预测
@@ -318,18 +352,38 @@ print(f"预测状态: {status}")
 print(f"概率: 正常={probabilities[0]:.2%}, 故障={probabilities[1]:.2%}")
 ```
 
+#### 皮带机打滑预测
+
+```python
+import onnxruntime as ort
+import numpy as np
+
+session = ort.InferenceSession('conveyor_slip_model.onnx')
+
+input_data = np.array([[135, 0.25, 9.0, 88]]).astype(np.float32)
+# 依次为: current, speed_diff, vibration, temperature
+
+outputs = session.run(None, {'float_input': input_data})
+label_idx = int(outputs[0][0])
+probabilities = outputs[1][0]
+
+status = "打滑" if label_idx == 1 else "正常"
+print(f"预测状态: {status}")
+print(f"概率: 正常={probabilities[0]:.2%}, 打滑={probabilities[1]:.2%}")
+```
+
 ## 模型对比
 
-| 特性 | 温度预测 | 泵故障预测 | 泄漏检测 | 采煤机故障 | 皮带机故障 |
-|------|---------|-----------|---------|-----------|-----------|
-| 模型类型 | 回归 | 分类 | 分类 | 分类 | 分类 |
-| 任务 | 温度预测 | 故障诊断 | 泄漏检测 | 故障诊断 | 故障诊断 |
-| 算法 | Gradient Boosting | Random Forest | Random Forest | Random Forest | Random Forest |
-| 特征数量 | 8 | 4 | 3 | 5 | 5 |
-| 样本数量 | 5000 | 10000 | 10000 | 10000 | 5000 |
-| 输出 | 连续数值 | 类别标签 | 类别标签 | 类别标签 | 类别标签 |
-| R²/准确率 | ~0.98 | ~97% | ~95% | ~99% | ~98% |
-| ONNX 大小 | 386 KB | 307 KB | 836 KB | 99 KB | ~500 KB |
+| 特性 | 温度预测 | 泵故障预测 | 泄漏检测 | 采煤机故障 | 皮带机故障 | 皮带机打滑 |
+|------|---------|-----------|---------|-----------|-----------|-----------|
+| 模型类型 | 回归 | 分类 | 分类 | 分类 | 分类 | 分类 |
+| 任务 | 温度预测 | 故障诊断 | 泄漏检测 | 故障诊断 | 故障诊断 | 打滑预测 |
+| 算法 | Gradient Boosting | Random Forest | Random Forest | Random Forest | Random Forest | Random Forest |
+| 特征数量 | 8 | 4 | 3 | 5 | 5 | 4 |
+| 样本数量 | 5000 | 10000 | 10000 | 10000 | 5000 | 8000 |
+| 输出 | 连续数值 | 类别标签 | 类别标签 | 类别标签 | 类别标签 | 类别标签 |
+| R²/准确率 | ~0.98 | ~97% | ~95% | ~99% | ~98% | ~98% |
+| ONNX 大小 | 386 KB | 307 KB | 836 KB | 99 KB | ~500 KB | ~500 KB |
 
 ## 部署选项
 
@@ -511,6 +565,14 @@ print(f"批量预测 {len(predictions)} 个样本")
 - 建材行业物料输送
 - 预测性维护与安全预警
 
+### 皮带机打滑预测模型
+
+- 煤矿带式运输机打滑监测
+- 港口物流输送系统
+- 电厂输煤皮带机
+- 建材行业输送系统
+- 实时打滑预警
+
 ## 故障排查
 
 ### 常见问题
@@ -558,6 +620,7 @@ pip install onnxruntime-gpu  # GPU 版本
 - [压缩机泄漏预测模型详细文档](COMPRESSOR_MODEL_README.md) - 包含完整的 API 文档、示例代码和配置说明
 - [采煤机故障预测模型详细文档](SHEARER_MODEL_README.md) - 包含完整的 API 文档、示例代码和配置说明
 - [皮带机故障预测模型详细文档](BELT_CONVEYOR_MODEL_README.md) - 包含完整的 API 文档、示例代码和配置说明
+- [皮带机打滑预测模型详细文档](BELT_CONVEYOR_SLIP_README.md) - 包含完整的 API 文档、示例代码和配置说明
 
 ## 开发指南
 

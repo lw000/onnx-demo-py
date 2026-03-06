@@ -78,8 +78,10 @@ def main():
     # 5. 转换为 ONNX
     print("5. 转换模型为 ONNX 格式...")
     # RandomForestClassifier 的 ONNX 转换是支持的
+    # 关键修改：添加 options 参数，强制使用 tensor 输出，禁用 zipmap
+    options = {type(model_pipeline): {'zipmap': False}} # 使用 type(model_pipeline) 作为 key 也有效
     initial_type = [('float_input', FloatTensorType([None, X.shape[1]]))]
-    onnx_model = convert_sklearn(model_pipeline, initial_types=initial_type, target_opset=12)
+    onnx_model = convert_sklearn(model_pipeline, initial_types=initial_type, target_opset=12, options=options) # 这是核心修改)
 
     # 6. 保存 ONNX 模型
     onnx_model_path = "compressor_leakage_detector.onnx"

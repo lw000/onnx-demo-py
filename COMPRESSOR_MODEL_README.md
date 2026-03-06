@@ -112,19 +112,55 @@ accuracy                           0.96      2000
 macro avg       0.96      0.95      0.95      2000
 weighted avg       0.96      0.96      0.96      2000
 
-5. 转换模型为 ONNX 格式...
-✅ ONNX 模型已保存至: compressor_leakage_detector.onnx
-✅ scikit-learn 模型已保存至: compressor_leakage_detector_sklearn.pkl
+    # 5. 转换为 ONNX
+    print("5. 转换模型为 ONNX 格式...")
+    # RandomForestClassifier 的 ONNX 转换是支持的
+    # 关键修改：添加 options 参数，强制使用 tensor 输出，禁用 zipmap
+    options = {type(model_pipeline): {'zipmap': False}} # 使用 type(model) 作为 key 也有效
+    initial_type = [('float_input', FloatTensorType([None, X.shape[1]]))]
+    onnx_model = convert_sklearn(model_pipeline, initial_types=initial_type, target_opset=12, options=options) # 这是核心修改
 
-8. 验证 ONNX 模型一致性...
-   - 测试样本输入: [0.68 480. 400.]
-   - scikit-learn 预测 (0:正常, 1:泄漏): 1
-   - scikit-learn 概率: [0.03 0.97]
-   - ONNX 模型预测 (0:正常, 1:泄漏): 1
-   - ONNX 概率: [0.03 0.97]
-   - 预测结果一致: True
+    # 6. 保存 ONNX 模型
+    onnx_model_path = "compressor_leakage_detector.onnx"
+    with open(onnx_model_path, "wb") as f:
+        f.write(onnx_model.SerializeToString())
+    print(f"✅ ONNX 模型已保存至: {onnx_model_path}")
 
---- Python 端任务完成 ---
+    # 7. 保存原始模型 (可选)
+    joblib.dump(model_pipeline, "compressor_leakage_detector_sklearn.pkl")
+    print(f"✅ scikit-learn 模型已保存至: compressor_leakage_detector_sklearn.pkl")
+
+    # 8. 验证 ONNX 模型 (可选)
+    print("\n8. 验证 ONNX 模型一致性...")
+    try:
+        import onnxruntime as rt
+
+        sess = rt.InferenceSession(onnx_model_path)
+
+        # 准备一个测试样本 (模拟一个泄漏场景)
+        sample_input = X_test[y_test == 1][0:1].astype(np.float32)  # 取一个泄漏样本
+
+        # scikit-learn 预测
+        sk_pred = model_pipeline.predict(sample_input)[0]
+        sk_proba = model_pipeline.predict_proba(sample_input)[0]
+
+        # ONNX 预测
+        onnx_pred = sess.run(None, {'float_input': sample_input})
+        # RandomForestClassifier 的 ONNX 输出: [label_index, probabilities]
+        onnx_label = int(onnx_pred[0][0])
+        onnx_proba = onnx_pred[1][0]
+
+        print(f"   - 测试样本输入: {sample_input[0]}")
+        print(f"   - scikit-learn 预测 (0:正常, 1:泄漏): {sk_pred}")
+        print(f"   - scikit-learn 概率: {sk_proba}")
+        print(f"   - ONNX 模型预测 (0:正常, 1:泄漏): {onnx_label}")
+        print(f"   - ONNX 概率: {onnx_proba}")
+        print(f"   - 预测结果一致: {sk_pred == onnx_label}")
+
+    except ImportError:
+        print("   - 未安装 onnxruntime，跳过验证。")
+    except Exception as e:
+        print(f"   - ONNX 验证失败: {e}")
 ```
 
 ### 2. 使用 Sklearn 模型预测
@@ -202,7 +238,47 @@ print(f"正常: {normal_count} ({normal_count/len(batch_data):.1%})")
 print(f"泄漏: {leak_count} ({leak_count/len(batch_data):.1%})")
 ```
 
-### 5. 单样本预测函数封装
+### 5. 实时预测示例 (Python ONNX)
+
+训练脚本中包含 ONNX 模型验证和实时预测示例，运行以下命令即可查看：
+
+```bash
+python compressor_leakage_prediction.py
+```
+
+输出示例：
+
+```
+--- 开始训练空压系统管网泄漏预测模型 ---
+1. 生成模拟数据...
+2. 划分训练集和测试集...
+3. 训练模型 (Random Forest Classifier)...
+4. 评估模型...
+              precision    recall  f1-score   support
+
+      正常       0.97      0.98      0.97      1400
+      泄漏       0.95      0.92      0.93       600
+
+accuracy                           0.96      2000
+macro avg       0.96      0.95      0.95      2000
+weighted avg       0.96      0.96      0.96      2000
+
+5. 转换模型为 ONNX 格式...
+✅ ONNX 模型已保存至: compressor_leakage_detector.onnx
+✅ scikit-learn 模型已保存至: compressor_leakage_detector_sklearn.pkl
+
+8. 验证 ONNX 模型一致性...
+   - 测试样本输入: [0.68 480. 400.]
+   - scikit-learn 预测 (0:正常, 1:泄漏): 1
+   - scikit-learn 概率: [0.03 0.97]
+   - ONNX 模型预测 (0:正常, 1:泄漏): 1
+   - ONNX 概率: [0.03 0.97]
+   - 预测结果一致: True
+
+--- Python 端任务完成 ---
+```
+
+### 6. 单样本预测函数封装
 
 ```python
 import onnxruntime as ort
@@ -359,6 +435,39 @@ def generate_compressor_data(n_samples=10000):
 | 测试样本 | 2000 |
 | 模型大小 | 836 KB (ONNX) |
 
+## ONNX 导出优化
+
+### 禁用 ZipMap 提升兼容性
+
+当前代码已配置禁用 ZipMap，提升 ONNX 模型的跨平台兼容性：
+
+```python
+# 关键配置
+options = {type(model_pipeline): {'zipmap': False}}
+
+onnx_model = convert_sklearn(
+    model_pipeline,
+    initial_types=initial_type,
+    target_opset=12,
+    options=options  # 强制使用 tensor 输出
+)
+```
+
+**优点**:
+- 避免 ZipMap 输出格式在 C++/嵌入式设备上的解析问题
+- 输出为标准张量格式，兼容性更强
+- 减少模型复杂度，提升推理速度
+
+### 模型验证
+
+导出时自动验证模型结构：
+
+```python
+# 验证模型
+onnx.checker.check_model(onnx_model)
+print("✅ ONNX 模型验证通过")
+```
+
 ## 模型验证
 
 ### ONNX 模型验证
@@ -413,16 +522,95 @@ if not consistent:
 
 ```cpp
 #include <onnxruntime_cxx_api.h>
+#include <iostream>
+#include <vector>
 
-// 加载模型
-Ort::Env env{ORT_LOGGING_LEVEL_WARNING, "test"};
-Ort::Session session{env, L"compressor_leakage_detector.onnx", Ort::SessionOptions{nullptr}};
+class CompressorLeakageDetector {
+private:
+    Ort::Session session;
+    Ort::Env env;
 
-// 准备输入
-float input_tensor_values[] = {0.75f, 500.0f, 490.0f};
+public:
+    CompressorLeakageDetector(const std::string& model_path)
+        : env(ORT_LOGGING_LEVEL_WARNING, "Compressor"),
+          session(env, model_path.c_str(), Ort::SessionOptions{}) {
+        std::cout << "✅ 模型加载成功" << std::endl;
+    }
 
-// 运行推理
-// ... 推理代码
+    void predict(float pressure, float supply_flow, float demand_flow) {
+        // 准备输入
+        std::vector<float> input_data = {pressure, supply_flow, demand_flow};
+        std::vector<int64_t> input_shape = {1, 3};
+
+        // 创建张量
+        Ort::MemoryInfo memory_info = Ort::MemoryInfo::CreateCpu(
+            OrtArenaAllocator, OrtMemTypeDefault);
+        Ort::Value input_tensor = Ort::Value::CreateTensor<float>(
+            memory_info, input_data.data(), input_data.size(),
+            input_shape.data(), input_shape.size());
+
+        // 运行推理
+        const char* input_names[] = {"float_input"};
+        const char* output_names[] = {"output_label", "output_probability"};
+
+        auto outputs = session.run(
+            Ort::RunOptions{nullptr},
+            input_names, &input_tensor, 1,
+            output_names, 2
+        );
+
+        // 获取结果
+        int64_t label = outputs[0].GetTensorMutableData<int64_t>()[0];
+        float* proba = outputs[1].GetTensorMutableData<float>();
+
+        // 输出
+        std::cout << "\n=== 预测结果 ===" << std::endl;
+        std::cout << "输入: 压力=" << pressure << "MPa, 供气流量=" << supply_flow
+                  << "m³/h, 用气流量=" << demand_flow << "m³/h" << std::endl;
+        std::cout << "预测: " << (label == 1 ? "泄漏" : "正常") << std::endl;
+        std::cout << "正常概率: " << proba[0] * 100 << "%" << std::endl;
+        std::cout << "泄漏概率: " << proba[1] * 100 << "%" << std::endl;
+
+        // 计算泄漏量
+        float leakage_amount = std::max(0.0f, supply_flow - demand_flow);
+        std::cout << "泄漏量: " << leakage_amount << " m³/h" << std::endl;
+
+        // 风险等级
+        if (label == 1) {
+            if (leakage_amount > 60) {
+                std::cout << "风险等级: 严重泄漏 🔴" << std::endl;
+            } else if (leakage_amount > 40) {
+                std::cout << "风险等级: 中度泄漏 🟠" << std::endl;
+            } else {
+                std::cout << "风险等级: 轻微泄漏 🟡" << std::endl;
+            }
+        } else {
+            std::cout << "风险等级: 正常 🟢" << std::endl;
+        }
+    }
+};
+
+int main() {
+    try {
+        CompressorLeakageDetector detector("compressor_leakage_detector.onnx");
+
+        // 测试不同工况
+        std::cout << "\n【测试1: 正常工况】" << std::endl;
+        detector.predict(0.75f, 500.0f, 490.0f);
+
+        std::cout << "\n【测试2: 泄漏工况】" << std::endl;
+        detector.predict(0.68f, 480.0f, 400.0f);
+
+        std::cout << "\n【测试3: 临界状态】" << std::endl;
+        detector.predict(0.72f, 510.0f, 475.0f);
+
+    } catch (const Ort::Exception& e) {
+        std::cerr << "ONNX Runtime 错误: " << e.what() << std::endl;
+        return 1;
+    }
+
+    return 0;
+}
 ```
 
 ### 2. Web 部署

@@ -121,3 +121,102 @@ predictions = pipeline.predict(test_sample)
 print(f"输入: {test_sample[0]}")
 print(f"预测温度: {predictions[0]:.2f}°C")
 print(f"实际温度: {y_test.iloc[0] if hasattr(y_test, 'iloc') else y_test[0]:.2f}°C")
+
+# ONNX 推理验证
+print("\n" + "="*50)
+print("ONNX 推理验证")
+print("="*50)
+
+try:
+    import onnxruntime as ort
+
+    # 加载 ONNX 模型
+    session = ort.InferenceSession(onnx_path)
+
+    # 准备测试数据
+    test_input = test_sample[0:1].astype(np.float32)
+
+    # Sklearn 预测
+    sklearn_pred = pipeline.predict(test_input)[0]
+
+    # ONNX 预测
+    onnx_result = session.run(None, {'float_input': test_input})
+    onnx_pred = float(onnx_result[0][0])
+
+    print(f"\n【对比结果】")
+    print(f"测试输入: {test_input[0]}")
+    print(f"Sklearn 预测温度: {sklearn_pred:.4f}°C")
+    print(f"ONNX 预测温度: {onnx_pred:.4f}°C")
+    print(f"差异: {abs(sklearn_pred - onnx_pred):.6f}°C")
+
+    if abs(sklearn_pred - onnx_pred) < 0.001:
+        print("✅ Sklearn 和 ONNX 预测结果一致")
+    else:
+        print("⚠️  预测结果存在轻微差异（可能由浮点精度导致）")
+
+    # 批量推理测试
+    print(f"\n【批量推理测试】")
+    batch_input = test_sample[:10].astype(np.float32)
+
+    # Sklearn 批量预测
+    sklearn_batch = pipeline.predict(batch_input)
+
+    # ONNX 批量预测
+    onnx_batch_result = session.run(None, {'float_input': batch_input})
+    onnx_batch = onnx_batch_result[0].flatten()
+
+    print(f"批量预测样本数: {len(batch_input)}")
+    print(f"平均差异: {np.mean(np.abs(sklearn_batch - onnx_batch)):.6f}°C")
+    print(f"最大差异: {np.max(np.abs(sklearn_batch - onnx_batch)):.6f}°C")
+
+    # 特定样本展示
+    print(f"\n【前3个样本预测结果】")
+    for i in range(min(3, len(batch_input))):
+        print(f"  样本 {i+1}: Sklearn={sklearn_batch[i]:.2f}°C, ONNX={onnx_batch[i]:.2f}°C, 差异={abs(sklearn_batch[i] - onnx_batch[i]):.6f}°C")
+
+except ImportError:
+    print("\n⚠️  未安装 onnxruntime，跳过 ONNX 推理测试")
+    print("安装命令: pip install onnxruntime")
+except Exception as e:
+    print(f"\n❌ ONNX 推理测试失败: {e}")
+
+# 实时预测示例
+print("\n" + "="*50)
+print("实时预测示例")
+print("="*50)
+
+try:
+    import onnxruntime as ort
+    session = ort.InferenceSession(onnx_path)
+
+    # 模拟不同工况的实时数据
+    scenarios = {
+        "正常工况": np.array([[25.0, 2.0, 2.5, 1.8, 5.0, 230.0, 100.0, 50.0]], dtype=np.float32),
+        "高负荷": np.array([[60.0, 5.0, 6.0, 4.5, 12.0, 225.0, 105.0, 55.0]], dtype=np.float32),
+        "低负荷": np.array([[20.0, 1.0, 1.5, 1.2, 2.0, 235.0, 95.0, 45.0]], dtype=np.float32),
+        "振动异常": np.array([[40.0, 8.0, 9.0, 7.5, 8.0, 228.0, 102.0, 60.0]], dtype=np.float32),
+    }
+
+    print("\n工况预测结果:")
+    for scenario_name, input_data in scenarios.items():
+        result = session.run(None, {'float_input': input_data})
+        predicted_temp = float(result[0][0])
+
+        print(f"\n{scenario_name}:")
+        print(f"  输入: [温度={input_data[0][0]}°C, 振动_X={input_data[0][1]}, 振动_Y={input_data[0][2]}, "
+              f"振动_Z={input_data[0][3]}, 电流={input_data[0][4]}A, 电压={input_data[0][5]}V, "
+              f"气压={input_data[0][6]}, 湿度={input_data[0][7]}]")
+        print(f"  预测温度: {predicted_temp:.2f}°C")
+
+        # 温度预警
+        if predicted_temp > 70:
+            print(f"  🚨 预警: 温度过高！")
+        elif predicted_temp > 50:
+            print(f"  ⚡ 提示: 温度偏高")
+        else:
+            print(f"  ✓ 温度正常")
+
+except ImportError:
+    pass
+except Exception as e:
+    print(f"实时预测示例失败: {e}")

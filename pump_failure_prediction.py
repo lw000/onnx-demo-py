@@ -1,4 +1,3 @@
-# pump_failure_prediction.py
 import numpy as np
 import pandas as pd
 from sklearn.ensemble import RandomForestClassifier
@@ -8,7 +7,7 @@ from sklearn.pipeline import Pipeline
 from sklearn.metrics import classification_report
 import onnx
 from skl2onnx import convert_sklearn
-from skl2onnx.common.data_types import FloatTensorType
+from skl2onnx.common.data_types import FloatTensorType, Int64TensorType
 import joblib
 
 def generate_pump_data(n_samples=10000):
@@ -16,10 +15,10 @@ def generate_pump_data(n_samples=10000):
     生成模拟的泵运行数据，包括正常、磨损、汽蚀三种状态。
     """
     np.random.seed(42)
-    
+
     data = []
     labels = []
-    
+
     # 定义三种状态的参数范围
     states = {
         "normal": {
@@ -42,9 +41,12 @@ def generate_pump_data(n_samples=10000):
         }
     }
 
+    # 创建标签映射: 字符串 -> 数字
+    label_map = {"normal": 0, "wear": 1, "cavitation": 2}
+
     for state, params in states.items():
         n_state_samples = n_samples // 3
-        
+
         flow = np.random.normal(loc=np.mean(params["flow"]), scale=(params["flow"][1]-params["flow"][0])/6, size=n_state_samples).clip(*params["flow"])
         head = np.random.normal(loc=np.mean(params["head"]), scale=(params["head"][1]-params["head"][0])/6, size=n_state_samples).clip(*params["head"])
         power = np.random.normal(loc=np.mean(params["power"]), scale=(params["power"][1]-params["power"][0])/6, size=n_state_samples).clip(*params["power"])
@@ -52,8 +54,8 @@ def generate_pump_data(n_samples=10000):
 
         for i in range(n_state_samples):
             data.append([flow[i], head[i], power[i], vibration[i]])
-            labels.append(state)
-            
+            labels.append(label_map[state])  # 使用数字标签
+
     return np.array(data), np.array(labels)
 
 def main():
@@ -82,9 +84,12 @@ def main():
 
     # 5. 转换为 ONNX
     print("5. 转换模型为 ONNX 格式...")
+    # 关键修改：添加 options 参数，强制使用 tensor 输出，禁用 zipmap
+    options = {type(model_pipeline): {'zipmap': False}} # 使用 type(model_pipeline) 作为 key 也有效
+
     # 定义输入类型: [批大小, 特征数]。批大小设为 None 表示可以动态变化。
     initial_type = [('float_input', FloatTensorType([None, X.shape[1]]))]
-    onnx_model = convert_sklearn(model_pipeline, initial_types=initial_type, target_opset=12)
+    onnx_model = convert_sklearn(model_pipeline, initial_types=initial_type, target_opset=12, options=options)
 
     # 6. 保存 ONNX 模型
     onnx_model_path = "pump_failure_classifier.onnx"
@@ -100,26 +105,41 @@ def main():
     print("\n8. 验证 ONNX 模型一致性...")
     try:
         import onnxruntime as rt
-        
+
         sess = rt.InferenceSession(onnx_model_path)
-        
+
+        # 获取输入输出信息
+        input_name = sess.get_inputs()[0].name
+        output_names = [output.name for output in sess.get_outputs()]
+        print(f"   - 输入节点: {input_name}")
+        print(f"   - 输出节点: {output_names}")
+
         # 准备一个测试样本
         sample_input = X_test[0:1].astype(np.float32)
-        
+
         # scikit-learn 预测
         sk_pred = model_pipeline.predict(sample_input)
         sk_proba = model_pipeline.predict_proba(sample_input)
-        
+
         # ONNX 预测
-        onnx_pred = sess.run(None, {'float_input': sample_input})
-        # ONNX 输出通常是 (label, probabilities)
-        onnx_label = onnx_pred[0][0]
-        onnx_proba = onnx_pred[1][0] # 概率字典
-        
+        onnx_outputs = sess.run(None, {input_name: sample_input})
+        # ONNX 输出: [label, probabilities]
+        onnx_label = onnx_outputs[0][0]
+        onnx_proba = onnx_outputs[1][0]  # 概率数组
+
         print(f"   - scikit-learn 预测类别: {sk_pred[0]}, 概率: {sk_proba[0]}")
-        print(f"   - ONNX 模型预测类别: {onnx_label}, 概率: {list(onnx_proba.values())}")
-        print(f"   - 预测类别一致: {sk_pred[0] == onnx_label}")
-        
+        print(f"   - ONNX 模型预测类别: {onnx_label}, 概率: {onnx_proba}")
+
+        # 检查标签类型
+        if isinstance(onnx_label, (bytes, str)):
+            print(f"   - ONNX 标签类型: 字符串")
+            onnx_label_str = onnx_label.decode('utf-8') if isinstance(onnx_label, bytes) else onnx_label
+            onnx_label_int = label_map.get(onnx_label_str, -1)
+            print(f"   - 预测类别一致: {sk_pred[0] == onnx_label_int}")
+        else:
+            print(f"   - ONNX 标签类型: {type(onnx_label)}")
+            print(f"   - 预测类别一致: {sk_pred[0] == onnx_label}")
+
     except ImportError:
         print("   - 未安装 onnxruntime，跳过验证。")
     except Exception as e:

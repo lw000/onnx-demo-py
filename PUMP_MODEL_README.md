@@ -48,9 +48,18 @@ pip install onnxruntime
 
 | 类别 | 说明 | 典型特征 | 预警等级 |
 |------|------|----------|----------|
-| normal | 正常运行 | 流量正常（100-120），振动低（0.5-1.5） | 🟢 正常 |
-| wear | 磨损故障 | 流量略减（90-110），振动增强（1.5-3.0） | 🟡 预警 |
-| cavitation | 汽蚀故障 | 流量大幅下降（80-100），振动强烈（2.5-4.5） | 🔴 严重 |
+| 0 (normal) | 正常运行 | 流量正常（100-120），振动低（0.5-1.5） | 🟢 正常 |
+| 1 (wear) | 磨损故障 | 流量略减（90-110），振动增强（1.5-3.0） | 🟡 预警 |
+| 2 (cavitation) | 汽蚀故障 | 流量大幅下降（80-100），振动强烈（2.5-4.5） | 🔴 严重 |
+
+**标签映射**：
+```python
+label_map = {
+    0: "normal",      # 正常
+    1: "wear",        # 磨损
+    2: "cavitation"   # 汽蚀
+}
+```
 
 ### 故障详情
 
@@ -117,9 +126,9 @@ python pump_failure_prediction.py
 4. 评估模型...
               precision    recall  f1-score   support
 
-  cavitation       0.96      0.97      0.96       667
-      normal       0.97      0.98      0.98       667
-        wear       0.97      0.95      0.96       667
+           0       0.96      0.97      0.96       667
+           1       0.97      0.98      0.98       667
+           2       0.97      0.95      0.96       667
 
     accuracy                           0.97      2000
    macro avg       0.97      0.97      0.97      2000
@@ -130,8 +139,8 @@ weighted avg       0.97      0.97      0.97      2000
 ✅ scikit-learn 模型已保存至: pump_failure_classifier_sklearn.pkl
 
 8. 验证 ONNX 模型一致性...
-   - scikit-learn 预测类别: normal, 概率: [0.02 0.95 0.03]
-   - ONNX 模型预测类别: normal, 概率: [0.02, 0.95, 0.03]
+   - scikit-learn 预测类别: 0, 概率: [0.02 0.95 0.03]
+   - ONNX 模型预测类别: 0, 概率: [0.02, 0.95, 0.03]
    - 预测类别一致: True
 
 --- Python 端任务完成 ---
@@ -146,6 +155,9 @@ import numpy as np
 # 加载模型
 pipeline = joblib.load('pump_failure_classifier_sklearn.pkl')
 
+# 标签映射
+label_map = {0: "normal", 1: "wear", 2: "cavitation"}
+
 # 准备输入数据 (4 个特征)
 input_data = np.array([[
     110.0,   # flow (m³/h)
@@ -158,19 +170,19 @@ input_data = np.array([[
 prediction = pipeline.predict(input_data)[0]
 probability = pipeline.predict_proba(input_data)[0]
 
-print(f"预测状态: {prediction}")
+print(f"预测状态: {prediction} ({label_map[prediction]})")
 print("概率分布:")
 for cls, prob in zip(pipeline.classes_, probability):
-    print(f"  {cls}: {prob:.2%}")
+    print(f"  {cls} ({label_map[cls]}): {prob:.2%}")
 ```
 
 输出示例：
 ```
-预测状态: normal
+预测状态: 0 (normal)
 概率分布:
-  cavitation: 2.35%
-  normal: 95.12%
-  wear: 2.53%
+  0 (normal): 95.12%
+  1 (wear): 2.53%
+  2 (cavitation): 2.35%
 ```
 
 ### 3. 使用 ONNX 模型预测
@@ -182,8 +194,9 @@ import numpy as np
 # 加载 ONNX 模型
 session = ort.InferenceSession('pump_failure_classifier.onnx')
 
-# 类别映射（需要根据模型输出的顺序调整）
-label_names = ['cavitation', 'normal', 'wear']
+# 类别映射（标签顺序按数值排列）
+label_map = {0: "normal", 1: "wear", 2: "cavitation"}
+label_names = ["normal", "wear", "cavitation"]  # 对应索引 0, 1, 2
 
 # 准备输入数据
 input_data = np.array([[
@@ -195,24 +208,24 @@ input_data = np.array([[
 
 # 预测
 outputs = session.run(None, {'float_input': input_data})
-label_idx = int(outputs[0][0])          # 预测类别索引
-probabilities = outputs[1][0]           # 各类别概率字典
+label_idx = int(outputs[0][0])          # 预测类别索引 (0, 1, 或 2)
+probabilities = outputs[1][0]           # 各类别概率数组
 
 predicted_class = label_names[label_idx]
 
-print(f"预测状态: {predicted_class}")
+print(f"预测状态: {label_idx} ({predicted_class})")
 print("概率分布:")
-for name, prob in zip(label_names, probabilities):
-    print(f"  {name}: {prob:.2%}")
+for idx, name in enumerate(label_names):
+    print(f"  {idx} ({name}): {probabilities[idx]:.2%}")
 ```
 
 输出示例：
 ```
-预测状态: normal
+预测状态: 0 (normal)
 概率分布:
-  cavitation: 2.35%
-  normal: 95.12%
-  wear: 2.53%
+  0 (normal): 95.12%
+  1 (wear): 2.53%
+  2 (cavitation): 2.35%
 ```
 
 ### 4. 批量预测
@@ -223,7 +236,8 @@ import numpy as np
 
 # 加载模型
 session = ort.InferenceSession('pump_failure_classifier.onnx')
-label_names = ['cavitation', 'normal', 'wear']
+label_map = {0: "normal", 1: "wear", 2: "cavitation"}
+label_names = ["normal", "wear", "cavitation"]
 
 # 批量预测
 batch_data = np.random.rand(100, 4).astype(np.float32)
@@ -234,13 +248,15 @@ probabilities = outputs[1]
 # 统计各类别数量
 label_counts = {}
 for label in labels:
-    cls = label_names[int(label)]
+    label_idx = int(label)
+    cls = label_map[label_idx]
     label_counts[cls] = label_counts.get(cls, 0) + 1
 
 print(f"批量预测 {len(batch_data)} 个样本")
 print("类别分布:")
-for cls, count in label_counts.items():
-    print(f"  {cls}: {count} ({count/len(batch_data):.1%})")
+for idx, name in enumerate(label_names):
+    count = label_counts.get(name, 0)
+    print(f"  {idx} ({name}): {count} ({count/len(batch_data):.1%})")
 ```
 
 ### 5. 单样本预测函数封装
@@ -252,42 +268,47 @@ import numpy as np
 class PumpFailurePredictor:
     def __init__(self, model_path='pump_failure_classifier.onnx'):
         self.session = ort.InferenceSession(model_path)
-        self.label_names = ['cavitation', 'normal', 'wear']
-    
+        self.label_map = {0: "normal", 1: "wear", 2: "cavitation"}
+        self.label_names = ["normal", "wear", "cavitation"]
+
     def predict(self, flow, head, power, vibration):
         """
         预测泵故障状态
-        
+
         参数:
             flow: 流量 (m³/h)
             head: 扬程 (m)
             power: 功率 (kW)
             vibration: 振动 (mm/s)
-        
+
         返回:
             dict: {
-                'prediction': 预测类别,
+                'prediction': 预测类别索引,
+                'prediction_name': 预测类别名称,
                 'probabilities': 各类别概率,
                 'confidence': 置信度
             }
         """
         input_data = np.array([[flow, head, power, vibration]]).astype(np.float32)
-        
+
         outputs = self.session.run(None, {'float_input': input_data})
         label_idx = int(outputs[0][0])
         probabilities = outputs[1][0]
-        
-        prediction = self.label_names[label_idx]
+
+        prediction_name = self.label_map[label_idx]
         confidence = float(probabilities[label_idx])
-        
+
         return {
-            'prediction': prediction,
+            'prediction': label_idx,
+            'prediction_name': prediction_name,
             'probabilities': dict(zip(self.label_names, probabilities)),
             'confidence': confidence
         }
-    
+
     def get_risk_level(self, prediction):
         """获取风险等级"""
+        if isinstance(prediction, int):
+            prediction = self.label_map[prediction]
         risk_levels = {
             'normal': ('🟢 正常', 'low'),
             'wear': ('🟡 预警', 'medium'),
@@ -299,12 +320,12 @@ class PumpFailurePredictor:
 predictor = PumpFailurePredictor()
 result = predictor.predict(flow=110.0, head=55.0, power=50.0, vibration=1.2)
 
-print(f"预测状态: {result['prediction']}")
+print(f"预测状态: {result['prediction']} ({result['prediction_name']})")
 print(f"置信度: {result['confidence']:.2%}")
 print(f"风险等级: {predictor.get_risk_level(result['prediction'])[0]}")
 print("概率分布:")
-for cls, prob in result['probabilities'].items():
-    print(f"  {cls}: {prob:.2%}")
+for idx, name in enumerate(predictor.label_names):
+    print(f"  {idx} ({name}): {result['probabilities'][name]:.2%}")
 ```
 
 ## 数据生成逻辑

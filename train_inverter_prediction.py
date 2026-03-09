@@ -7,62 +7,95 @@ from sklearn.metrics import mean_absolute_error, accuracy_score
 from skl2onnx import convert_sklearn
 from skl2onnx.common.data_types import FloatTensorType
 import onnx
+import os
 
 # 变频器，实现电容寿命预测和温升率检测
 
-# 1. 生成高保真模拟数据
-np.random.seed(42)
-n_samples = 5000
-window_size = 20
+# 数据目录和文件路径
+data_dir = "data"
+os.makedirs(data_dir, exist_ok=True)
+raw_data_file = os.path.join(data_dir, "inverter_raw_data.csv")
 
-# 基础信号
-time = np.arange(n_samples)
-load_factor = np.random.uniform(0.3, 1.0, n_samples) # 负载率 0.3-1.0
+# 1. 检查或生成原始训练数据
+def generate_raw_data():
+    """生成模拟的原始数据并保存到CSV"""
+    np.random.seed(42)
+    n_samples = 5000
 
-# 正常状态参数
-base_temp = 60.0
-base_ripple = 2.0 # 正常纹波 RMS
+    # 基础信号
+    time = np.arange(n_samples)
+    load_factor = np.random.uniform(0.3, 1.0, n_samples)
 
-# 初始化数组
-temps = np.zeros(n_samples)
-ripples = np.zeros(n_samples)
-labels_life = np.zeros(n_samples)   # 电容寿命 % (0-100)
-labels_thermal = np.zeros(n_samples) # 温升异常概率 (0-1)
+    # 正常状态参数
+    base_temp = 60.0
+    base_ripple = 2.0
 
-# 模拟退化过程
-for i in range(n_samples):
-    # 模拟电容老化：随时间缓慢增加纹波，受负载加速
-    aging_factor = min(1.0, i / (n_samples * 0.8)) # 80% 时间点开始严重老化
-    ripple_noise = np.random.normal(0, 0.5)
-    ripples[i] = base_ripple + (aging_factor * 15.0 * load_factor[i]) + ripple_noise
-    
-    # 模拟温度：基础温度 + 负载温升 + 散热故障突变
-    thermal_fault = 0.0
-    if i > n_samples * 0.7: # 70% 后发生散热故障
-        thermal_fault = (i - n_samples * 0.7) * 0.5 # 温度线性飙升
-    
-    temps[i] = base_temp + (load_factor[i] * 20) + thermal_fault + np.random.normal(0, 1)
+    # 初始化数组
+    temps = np.zeros(n_samples)
+    ripples = np.zeros(n_samples)
+    labels_life = np.zeros(n_samples)
+    labels_thermal = np.zeros(n_samples)
 
-    # 构建标签 (Ground Truth)
-    # 寿命预测：纹波越大，寿命越低 (简化模型)
-    life_pct = max(0, 100 - (ripples[i] - base_ripple) * 5.0)
-    labels_life[i] = life_pct
-    
-    # 温升异常：温升率超过阈值即为异常 (这里用简化的逻辑生成标签)
-    # 实际训练中，标签应由专家标注或基于物理规则计算
-    is_thermal_risk = 1.0 if thermal_fault > 5.0 else 0.0
-    labels_thermal[i] = is_thermal_risk
+    # 模拟退化过程
+    for i in range(n_samples):
+        # 模拟电容老化
+        aging_factor = min(1.0, i / (n_samples * 0.8))
+        ripple_noise = np.random.normal(0, 0.5)
+        ripples[i] = base_ripple + (aging_factor * 15.0 * load_factor[i]) + ripple_noise
+
+        # 模拟温度
+        thermal_fault = 0.0
+        if i > n_samples * 0.7:
+            thermal_fault = (i - n_samples * 0.7) * 0.5
+
+        temps[i] = base_temp + (load_factor[i] * 20) + thermal_fault + np.random.normal(0, 1)
+
+        # 构建标签
+        life_pct = max(0, 100 - (ripples[i] - base_ripple) * 5.0)
+        labels_life[i] = life_pct
+
+        is_thermal_risk = 1.0 if thermal_fault > 5.0 else 0.0
+        labels_thermal[i] = is_thermal_risk
+
+    # 保存原始数据到CSV
+    df = pd.DataFrame({
+        'time': time,
+        'load_factor': load_factor,
+        'temperature': temps,
+        'ripple': ripples,
+        'label_life': labels_life,
+        'label_thermal': labels_thermal
+    })
+    df.to_csv(raw_data_file, index=False)
+    print(f"原始数据已生成并保存到: {raw_data_file}")
+    return df
+
+# 检查数据文件是否存在
+if os.path.exists(raw_data_file):
+    print(f"从 {raw_data_file} 加载训练数据...")
+    df = pd.read_csv(raw_data_file)
+    print(f"成功加载数据，共 {len(df)} 条记录")
+else:
+    print(f"训练数据不存在，正在生成模拟数据...")
+    df = generate_raw_data()
 
 # 2. 特征工程 (滑动窗口)
 # 注意：C++ 端必须完全复现此逻辑
+window_size = 20
 X = []
 y = []
 
-for i in range(window_size, n_samples):
+temps = df['temperature'].values
+ripples = df['ripple'].values
+load_factor = df['load_factor'].values
+labels_life = df['label_life'].values
+labels_thermal = df['label_thermal'].values
+
+for i in range(window_size, len(df)):
     t_win = temps[i-window_size:i]
     r_win = ripples[i-window_size:i]
     l_win = load_factor[i-window_size:i]
-    
+
     # 特征向量 (6维)
     features = [
         np.mean(r_win),             # 0: 平均纹波 (关键)
@@ -72,7 +105,7 @@ for i in range(window_size, n_samples):
         np.mean(l_win),             # 4: 平均负载
         np.max(t_win) - np.min(t_win) # 5: 温度波动范围
     ]
-    
+
     X.append(features)
     # 多输出目标：[寿命百分比, 热故障概率]
     y.append([labels_life[i], labels_thermal[i]])

@@ -1,10 +1,10 @@
 # 工业设备预测模型集合
 
-基于机器学习的工业设备监测系统，包含温度预测、泵故障预测、压缩机泄漏检测、采煤机故障预测和皮带机打滑故障预测五个核心模型，均支持 ONNX 格式跨平台部署。
+基于机器学习的工业设备监测系统，包含温度预测、泵故障预测、压缩机泄漏检测、采煤机故障预测、皮带机打滑故障预测和变频器健康预测六个核心模型，均支持 ONNX 格式跨平台部署。
 
 ## 项目概述
 
-本项目提供了六个独立的工业设备预测模型，用于不同场景的设备监测和故障诊断：
+本项目提供了七个独立的工业设备预测模型，用于不同场景的设备监测和故障诊断：
 
 1. **温度预测模型** (`advanced_temp_model.py`) - 使用 Gradient Boosting 回归预测设备温度
 2. **泵故障预测模型** (`pump_failure_prediction.py`) - 使用随机森林分类预测泵设备故障状态
@@ -12,6 +12,7 @@
 4. **采煤机故障预测模型** (`shearer_cutting_unit_failure_prediction.py`) - 使用随机森林分类预测采煤机截割部故障
 5. **皮带机打滑故障预测模型** (`belt_conveyor_slippage_fault_prediction.py`) - 使用随机森林分类预测皮带输送机打滑、卡阻等故障
 6. **皮带机打滑预测模型** (`belt_conveyor_slip_prediction.py`) - 使用随机森林分类预测皮带机打滑状态
+7. **变频器健康预测模型** (`train_inverter_prediction.py`) - 使用多输出随机森林回归预测电容寿命和温升异常
 
 所有模型都采用 sklearn 管道构建，并转换为 ONNX 格式以便于跨平台部署。
 
@@ -61,6 +62,9 @@ onnx-demo/
 ├── belt_conveyor_slip_prediction.py            # 皮带机打滑预测模型训练脚本
 ├── conveyor_slip_model.onnx                    # ONNX 格式打滑预测模型
 │
+├── train_inverter_prediction.py                # 变频器健康预测模型训练脚本
+├── inverter_health_multi.onnx                  # ONNX 格式变频器健康预测模型
+│
 ├── simple_temp_model.py                        # 简单温度预测示例
 ├── simple_temp_model.onnx                      # 简单 ONNX 模型
 │
@@ -70,6 +74,8 @@ onnx-demo/
 ├── SHEARER_MODEL_README.md                     # 采煤机故障预测模型详细文档
 ├── BELT_CONVEYOR_MODEL_README.md              # 皮带机故障预测模型详细文档
 ├── BELT_CONVEYOR_SLIP_README.md              # 皮带机打滑预测模型详细文档
+├── INVERTER_MODEL_README.md                   # 变频器健康预测模型详细文档
+├── CPP_PREDICTION_README.md                   # C++ ONNX 推理指南
 └── README.md                                  # 本文档
 ```
 
@@ -232,6 +238,35 @@ python belt_conveyor_slip_prediction.py
 
 ---
 
+### 7. 变频器健康预测模型
+
+**文件**: `train_inverter_prediction.py`
+
+**用途**: 预测变频器电容寿命和温升异常
+
+**特征** (6 个):
+- mean_ripple (V): 平均纹波
+- std_ripple (V): 纹波波动
+- mean_temp (°C): 平均温度
+- temp_rise (°C): 温升趋势
+- mean_load (-): 平均负载率
+- temp_range (°C): 温度波动范围
+
+**模型**: Multi-Output Random Forest Regressor
+- 100 棵决策树
+- 多输出回归（电容寿命%、温升异常概率）
+- 电容寿命 MAE: ~6.45%
+- 温升异常准确率: ~100%
+
+**运行**:
+```bash
+python train_inverter_prediction.py
+```
+
+**详细文档**: [INVERTER_MODEL_README.md](INVERTER_MODEL_README.md)
+
+---
+
 ## 快速开始
 
 ### 训练所有模型
@@ -254,6 +289,9 @@ python belt_conveyor_slippage_fault_prediction.py
 
 # 训练皮带机打滑预测模型
 python belt_conveyor_slip_prediction.py
+
+# 训练变频器健康预测模型
+python train_inverter_prediction.py
 ```
 
 ### 使用模型预测
@@ -372,18 +410,49 @@ print(f"预测状态: {status}")
 print(f"概率: 正常={probabilities[0]:.2%}, 打滑={probabilities[1]:.2%}")
 ```
 
+#### 变频器健康预测
+
+```python
+import onnxruntime as ort
+import numpy as np
+
+session = ort.InferenceSession('inverter_health_multi.onnx')
+
+input_data = np.array([[
+    2.18, 0.41, 72.43, 2.86, 0.62, 14.02
+]]).astype(np.float32)
+# 依次为: mean_ripple, std_ripple, mean_temp, temp_rise, mean_load, temp_range
+
+outputs = session.run(None, {'float_input': input_data})
+prediction = outputs[0][0]
+
+life_pct = prediction[0]
+thermal_risk = prediction[1]
+
+print(f"电容寿命: {life_pct:.2f}%")
+print(f"温升异常概率: {thermal_risk:.2%}")
+
+# 健康状态评估
+if life_pct > 80 and thermal_risk < 0.3:
+    print("状态: 健康")
+elif life_pct > 50 or thermal_risk < 0.7:
+    print("状态: 警告")
+else:
+    print("状态: 异常")
+```
+
 ## 模型对比
 
-| 特性 | 温度预测 | 泵故障预测 | 泄漏检测 | 采煤机故障 | 皮带机故障 | 皮带机打滑 |
-|------|---------|-----------|---------|-----------|-----------|-----------|
-| 模型类型 | 回归 | 分类 | 分类 | 分类 | 分类 | 分类 |
-| 任务 | 温度预测 | 故障诊断 | 泄漏检测 | 故障诊断 | 故障诊断 | 打滑预测 |
-| 算法 | Gradient Boosting | Random Forest | Random Forest | Random Forest | Random Forest | Random Forest |
-| 特征数量 | 8 | 4 | 3 | 5 | 5 | 4 |
-| 样本数量 | 5000 | 10000 | 10000 | 10000 | 5000 | 8000 |
-| 输出 | 连续数值 | 类别标签 | 类别标签 | 类别标签 | 类别标签 | 类别标签 |
-| R²/准确率 | ~0.98 | ~97% | ~95% | ~99% | ~98% | ~98% |
-| ONNX 大小 | 386 KB | 307 KB | 836 KB | 99 KB | ~500 KB | ~500 KB |
+| 特性 | 温度预测 | 泵故障预测 | 泄漏检测 | 采煤机故障 | 皮带机故障 | 皮带机打滑 | 变频器健康 |
+|------|---------|-----------|---------|-----------|-----------|-----------|-----------|
+| 模型类型 | 回归 | 分类 | 分类 | 分类 | 分类 | 分类 | 多输出回归 |
+| 任务 | 温度预测 | 故障诊断 | 泄漏检测 | 故障诊断 | 故障诊断 | 打滑预测 | 健康监测 |
+| 算法 | Gradient Boosting | Random Forest | Random Forest | Random Forest | Random Forest | Random Forest | Random Forest |
+| 特征数量 | 8 | 4 | 3 | 5 | 5 | 4 | 6 |
+| 样本数量 | 5000 | 10000 | 10000 | 10000 | 5000 | 8000 | 4980 |
+| 输出 | 连续数值 | 类别标签 | 类别标签 | 类别标签 | 类别标签 | 类别标签 | [寿命%, 风险概率] |
+| R²/准确率 | ~0.98 | ~97% | ~95% | ~99% | ~98% | ~98% | MAE~6.45% |
+| ONNX 大小 | 386 KB | 307 KB | 836 KB | 99 KB | ~500 KB | ~500 KB | ONNX 格式 |
 
 ## 部署选项
 
@@ -527,6 +596,16 @@ print(f"批量预测 {len(predictions)} 个样本")
 | 训练样本 | 4000 |
 | 测试样本 | 1000 |
 
+### 变频器健康预测模型
+
+| 指标 | 值 |
+|------|-----|
+| 电容寿命 MAE | ~6.45% |
+| 温升异常准确率 | ~100% |
+| 特征数量 | 6 |
+| 训练样本 | 3984 |
+| 测试样本 | 996 |
+
 ## 实际应用场景
 
 ### 温度预测模型
@@ -572,6 +651,14 @@ print(f"批量预测 {len(predictions)} 个样本")
 - 电厂输煤皮带机
 - 建材行业输送系统
 - 实时打滑预警
+
+### 变频器健康预测模型
+
+- 工业变频器健康监测
+- 电容寿命预测
+- 温升异常检测
+- 预防性维护
+- 能效优化分析
 
 ## 故障排查
 
@@ -621,6 +708,8 @@ pip install onnxruntime-gpu  # GPU 版本
 - [采煤机故障预测模型详细文档](SHEARER_MODEL_README.md) - 包含完整的 API 文档、示例代码和配置说明
 - [皮带机故障预测模型详细文档](BELT_CONVEYOR_MODEL_README.md) - 包含完整的 API 文档、示例代码和配置说明
 - [皮带机打滑预测模型详细文档](BELT_CONVEYOR_SLIP_README.md) - 包含完整的 API 文档、示例代码和配置说明
+- [变频器健康预测模型详细文档](INVERTER_MODEL_README.md) - 包含完整的 API 文档、示例代码和配置说明
+- [C++ ONNX 推理指南](CPP_PREDICTION_README.md) - C++ 部署和推理详细指南
 
 ## 开发指南
 

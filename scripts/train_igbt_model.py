@@ -10,42 +10,63 @@ from skl2onnx import convert_sklearn
 from skl2onnx.common.data_types import FloatTensorType
 import os
 
-# 模型输出目录
-model_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), "models")
+# 目录配置
+base_dir = os.path.dirname(os.path.dirname(__file__))
+model_dir = os.path.join(base_dir, "models")
+samples_dir = os.path.join(base_dir, "samples")
 os.makedirs(model_dir, exist_ok=True)
+os.makedirs(samples_dir, exist_ok=True)
+
+# 数据文件路径
+data_file = os.path.join(samples_dir, "igbt_temp_samples.csv")
+
+
+def generate_training_data(n_samples=5000):
+    """生成 IGBT 温度预测训练数据"""
+    np.random.seed(42)
+    
+    # 特征：
+    # current: 输出电流 (0-100A)
+    # frequency: 输出频率 (0-50Hz)
+    # ambient_temp: 环境温度 (20-40°C)
+    # temp_rate: 温升速率 (°C/s, 过去几秒的平均变化)
+    # load_factor: 负载率 (0-1.0)
+    data = {
+        'current': np.random.uniform(10, 90, n_samples),
+        'frequency': np.random.uniform(10, 50, n_samples),
+        'ambient_temp': np.random.uniform(20, 45, n_samples),
+        'temp_rate': np.random.uniform(-0.5, 2.0, n_samples), 
+        'load_factor': np.random.uniform(0.2, 1.0, n_samples)
+    }
+    df = pd.DataFrame(data)
+
+    # 标签：未来 5 秒后的 IGBT 温度 (构造一个物理逻辑公式 + 噪声)
+    # 假设基础温度 40，电流和负载影响大，温升速率影响直接
+    df['target_temp'] = (
+        40 + 
+        0.4 * df['current'] + 
+        10 * df['load_factor'] + 
+        0.5 * df['ambient_temp'] + 
+        5 * df['temp_rate'] + 
+        np.random.normal(0, 2, n_samples) # 噪声
+    )
+    
+    # 保存到 CSV
+    df.to_csv(data_file, index=False)
+    print(f"📁 训练数据已生成并保存到: {data_file}")
+    return df
+
 
 # ==========================================
-# 1. 模拟变频器数据 (实际场景中替换为真实 CSV/数据库)
+# 1. 加载或生成训练数据
 # ==========================================
-print("🔄 正在生成模拟数据...")
-np.random.seed(42)
-n_samples = 5000
-
-# 特征：
-# current: 输出电流 (0-100A)
-# frequency: 输出频率 (0-50Hz)
-# ambient_temp: 环境温度 (20-40°C)
-# temp_rate: 温升速率 (°C/s, 过去几秒的平均变化)
-# load_factor: 负载率 (0-1.0)
-data = {
-    'current': np.random.uniform(10, 90, n_samples),
-    'frequency': np.random.uniform(10, 50, n_samples),
-    'ambient_temp': np.random.uniform(20, 45, n_samples),
-    'temp_rate': np.random.uniform(-0.5, 2.0, n_samples), 
-    'load_factor': np.random.uniform(0.2, 1.0, n_samples)
-}
-df = pd.DataFrame(data)
-
-# 标签：未来 5 秒后的 IGBT 温度 (构造一个物理逻辑公式 + 噪声)
-# 假设基础温度 40，电流和负载影响大，温升速率影响直接
-df['target_temp'] = (
-    40 + 
-    0.4 * df['current'] + 
-    10 * df['load_factor'] + 
-    0.5 * df['ambient_temp'] + 
-    5 * df['temp_rate'] + 
-    np.random.normal(0, 2, n_samples) # 噪声
-)
+if os.path.exists(data_file):
+    print(f"📂 从 {data_file} 加载训练数据...")
+    df = pd.read_csv(data_file)
+    print(f"✅ 成功加载数据，共 {len(df)} 条记录")
+else:
+    print("⚠️ 训练数据不存在，正在生成模拟数据...")
+    df = generate_training_data()
 
 X = df[['current', 'frequency', 'ambient_temp', 'temp_rate', 'load_factor']].values
 y = df['target_temp'].values

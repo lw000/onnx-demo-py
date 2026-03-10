@@ -8,8 +8,17 @@ from skl2onnx import convert_sklearn
 from skl2onnx.common.data_types import FloatTensorType
 import onnx
 import os
+import matplotlib.pyplot as plt
+import matplotlib
+matplotlib.use('Agg')  # 非交互式后端
+import warnings
+warnings.filterwarnings('ignore')
 
 # 变频器，实现电容寿命预测和温升率检测
+
+# 设置 matplotlib 支持中文显示
+plt.rcParams['font.sans-serif'] = ['SimHei', 'Microsoft YaHei', 'Arial Unicode MS', 'DejaVu Sans']
+plt.rcParams['axes.unicode_minus'] = False  # 解决负号显示问题
 
 # 数据目录和文件路径
 data_dir = "data"
@@ -70,14 +79,149 @@ def generate_raw_data():
     print(f"原始数据已生成并保存到: {raw_data_file}")
     return df
 
+# 1.5 数据清洗函数
+def clean_data(df):
+    """数据清洗和验证"""
+    print("\n=== 数据清洗开始 ===")
+    df_clean = df.copy()
+
+    # 1. 检查缺失值
+    missing_count = df_clean.isnull().sum()
+    if missing_count.sum() > 0:
+        print(f"发现缺失值:\n{missing_count}")
+        df_clean = df_clean.dropna()
+        print(f"已删除缺失值行，剩余 {len(df_clean)} 条记录")
+    else:
+        print("✓ 无缺失值")
+
+    # 2. 检查重复值
+    dup_count = df_clean.duplicated().sum()
+    if dup_count > 0:
+        print(f"发现 {dup_count} 条重复记录，已删除")
+        df_clean = df_clean.drop_duplicates()
+    else:
+        print("✓ 无重复记录")
+
+    # 3. 数据范围验证
+    print("\n数据范围验证:")
+    ranges = {
+        'load_factor': (0.0, 1.0),
+        'temperature': (-50, 150),
+        'ripple': (0, 50),
+        'label_life': (0, 100),
+        'label_thermal': (0, 1)
+    }
+
+    for col, (min_val, max_val) in ranges.items():
+        if col in df_clean.columns:
+            out_of_range = ((df_clean[col] < min_val) | (df_clean[col] > max_val)).sum()
+            if out_of_range > 0:
+                print(f"  ⚠ {col}: {out_of_range} 条超出范围 [{min_val}, {max_val}]")
+                # 删除异常值
+                df_clean = df_clean[(df_clean[col] >= min_val) & (df_clean[col] <= max_val)]
+            else:
+                print(f"  ✓ {col}: 全部在范围内 [{min_val}, {max_val}]")
+
+    print(f"\n清洗后数据: {len(df_clean)} 条记录 (原始: {len(df)} 条)")
+    print("=== 数据清洗完成 ===\n")
+    return df_clean
+
+
+def visualize_data(df, df_clean):
+    """数据可视化"""
+    print("=== 生成数据可视化图表 ===")
+
+    fig, axes = plt.subplots(3, 2, figsize=(14, 10))
+    fig.suptitle('变频器健康数据可视化 (清洗前后对比)', fontsize=14, fontweight='bold')
+
+    # 样本数（用于归一化显示）
+    n_samples = len(df)
+    n_clean = len(df_clean)
+
+    # 1. 温度变化曲线
+    axes[0, 0].plot(df.index, df['temperature'], 'b-', alpha=0.3, label='原始')
+    axes[0, 0].plot(df_clean.index, df_clean['temperature'], 'r-', linewidth=1, label='清洗后')
+    axes[0, 0].set_title('温度变化曲线')
+    axes[0, 0].set_xlabel('时间')
+    axes[0, 0].set_ylabel('温度 (°C)')
+    axes[0, 0].legend()
+    axes[0, 0].grid(True, alpha=0.3)
+
+    # 2. 纹波变化曲线
+    axes[0, 1].plot(df.index, df['ripple'], 'b-', alpha=0.3, label='原始')
+    axes[0, 1].plot(df_clean.index, df_clean['ripple'], 'r-', linewidth=1, label='清洗后')
+    axes[0, 1].set_title('纹波变化曲线')
+    axes[0, 1].set_xlabel('时间')
+    axes[0, 1].set_ylabel('纹波 (V)')
+    axes[0, 1].legend()
+    axes[0, 1].grid(True, alpha=0.3)
+
+    # 3. 负载率分布直方图
+    axes[1, 0].hist(df['load_factor'], bins=50, alpha=0.5, label=f'原始 (n={n_samples})')
+    axes[1, 0].hist(df_clean['load_factor'], bins=50, alpha=0.5, label=f'清洗后 (n={n_clean})')
+    axes[1, 0].set_title('负载率分布')
+    axes[1, 0].set_xlabel('负载率')
+    axes[1, 0].set_ylabel('频数')
+    axes[1, 0].legend()
+    axes[1, 0].grid(True, alpha=0.3)
+
+    # 4. 电容寿命分布直方图
+    axes[1, 1].hist(df['label_life'], bins=50, alpha=0.5, label=f'原始 (n={n_samples})')
+    axes[1, 1].hist(df_clean['label_life'], bins=50, alpha=0.5, label=f'清洗后 (n={n_clean})')
+    axes[1, 1].set_title('电容寿命分布')
+    axes[1, 1].set_xlabel('寿命 (%)')
+    axes[1, 1].set_ylabel('频数')
+    axes[1, 1].legend()
+    axes[1, 1].grid(True, alpha=0.3)
+
+    # 5. 温度 vs 纹波散点图
+    scatter = axes[2, 0].scatter(df_clean['temperature'], df_clean['ripple'],
+                                 c=df_clean['label_thermal'], cmap='RdYlGn_r',
+                                 alpha=0.6, s=10)
+    axes[2, 0].set_title('温度 vs 纹波 (颜色=热故障)')
+    axes[2, 0].set_xlabel('温度 (°C)')
+    axes[2, 0].set_ylabel('纹波 (V)')
+    axes[2, 0].grid(True, alpha=0.3)
+    plt.colorbar(scatter, ax=axes[2, 0], label='热故障概率')
+
+    # 6. 温升异常计数
+    thermal_count_raw = (df['label_thermal'] > 0.5).sum()
+    thermal_count_clean = (df_clean['label_thermal'] > 0.5).sum()
+    bars = axes[2, 1].bar(['原始', '清洗后'], [thermal_count_raw, thermal_count_clean],
+                          color=['gray', 'red'])
+    axes[2, 1].set_title('温升异常样本数')
+    axes[2, 1].set_ylabel('样本数')
+    for bar, count in zip(bars, [thermal_count_raw, thermal_count_clean]):
+        height = bar.get_height()
+        axes[2, 1].text(bar.get_x() + bar.get_width()/2., height,
+                       f'{count}', ha='center', va='bottom')
+    axes[2, 1].grid(True, alpha=0.3)
+
+    plt.tight_layout()
+
+    # 保存图表
+    viz_path = os.path.join(data_dir, "data_visualization.svg")
+    plt.savefig(viz_path, dpi=150, bbox_inches='tight')
+    print(f"✓ 可视化图表已保存: {viz_path}\n")
+
+
 # 检查数据文件是否存在
 if os.path.exists(raw_data_file):
     print(f"从 {raw_data_file} 加载训练数据...")
     df = pd.read_csv(raw_data_file)
     print(f"成功加载数据，共 {len(df)} 条记录")
+
+    # 数据清洗
+    df = clean_data(df)
+
+    # 数据可视化
+    visualize_data(pd.read_csv(raw_data_file), df)
 else:
     print(f"训练数据不存在，正在生成模拟数据...")
     df = generate_raw_data()
+    # 生成数据后也需要清洗和可视化
+    df = clean_data(df)
+    visualize_data(df, df)  # 生成的数据没有异常，清洗前后相同
 
 # 2. 特征工程 (滑动窗口)
 # 注意：C++ 端必须完全复现此逻辑

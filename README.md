@@ -27,18 +27,34 @@
 ## 安装依赖
 
 ```bash
-pip install numpy scikit-learn onnx skl2onnx joblib pandas matplotlib seaborn
+pip install numpy scikit-learn onnx skl2onnx joblib pandas matplotlib seaborn onnxruntime
 ```
 
-如需验证 ONNX 模型，还需安装：
-```bash
-pip install onnxruntime
-```
+**依赖说明**:
+- `numpy` - 数值计算
+- `scikit-learn` - 机器学习算法
+- `onnx` - ONNX 模型操作
+- `skl2onnx` - Sklearn 模型转 ONNX
+- `onnxruntime` - ONNX 模型推理
+- `joblib` - 模型序列化
+- `pandas` - 数据处理
+- `matplotlib` - 数据可视化
+- `seaborn` - 高级可视化
 
 ## 项目结构
 
 ```
 onnx-demo/
+├── data/                                        # 训练数据目录
+│   ├── inverter_raw_data.csv                    # 变频器原始训练数据
+│   └── data_visualization.png                  # 数据可视化图表
+│
+├── models/                                     # 模型输出目录 (预留)
+│
+├── scripts/                                     # 辅助脚本目录 (预留)
+│
+├── samples/                                     # 示例数据目录
+│
 ├── advanced_temp_model.py                       # 温度预测模型训练脚本
 ├── advanced_temp_model.onnx                     # ONNX 格式温度预测模型 (386 KB)
 ├── advanced_temp_model_sklearn.pkl              # Sklearn 原始温度预测模型 (792 KB)
@@ -67,6 +83,9 @@ onnx-demo/
 │
 ├── simple_temp_model.py                        # 简单温度预测示例
 ├── simple_temp_model.onnx                      # 简单 ONNX 模型
+│
+├── sklearn-demo.py                             # Sklearn 使用示例
+├── check_model_output.py                       # 模型输出验证脚本
 │
 ├── TEMP_MODEL_README.md                        # 温度预测模型详细文档
 ├── PUMP_MODEL_README.md                        # 泵故障预测模型详细文档
@@ -244,6 +263,13 @@ python belt_conveyor_slip_prediction.py
 
 **用途**: 预测变频器电容寿命和温升异常
 
+**数据处理流程**:
+1. **数据加载**: 自动检查 `data/inverter_raw_data.csv` 是否存在
+2. **数据生成**: 不存在时自动生成模拟数据并保存
+3. **数据清洗**: 自动检测和处理缺失值、重复值、异常值
+4. **数据可视化**: 生成数据分布和特征关系图表 (`data/data_visualization.png`)
+5. **特征工程**: 滑动窗口提取 6 维特征
+
 **特征** (6 个):
 - mean_ripple (V): 平均纹波
 - std_ripple (V): 纹波波动
@@ -262,6 +288,11 @@ python belt_conveyor_slip_prediction.py
 ```bash
 python train_inverter_prediction.py
 ```
+
+**输出文件**:
+- `data/inverter_raw_data.csv` - 原始训练数据
+- `data/data_visualization.png` - 数据可视化图表
+- `inverter_health_multi.onnx` - ONNX 预测模型
 
 **详细文档**: [INVERTER_MODEL_README.md](INVERTER_MODEL_README.md)
 
@@ -699,6 +730,8 @@ pip install onnxruntime-gpu  # GPU 版本
 4. **历史数据分析**: 保存预测结果用于长期分析
 5. **模型更新**: 定期用新数据重新训练模型
 6. **多设备支持**: 扩展支持多种设备类型的预测
+7. **数据清洗增强**: 添加更多异常检测算法和数据预处理方法
+8. **特征工程优化**: 探索更多时序特征和频域特征
 
 ## 相关文档
 

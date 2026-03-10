@@ -46,55 +46,55 @@ pip install numpy scikit-learn onnx skl2onnx joblib pandas matplotlib seaborn on
 ```
 onnx-demo/
 ├── data/                                        # 训练数据目录
-│   ├── inverter_raw_data.csv                    # 变频器原始训练数据
-│   └── data_visualization.png                  # 数据可视化图表
+│   ├── inverter_raw_data.csv                    # 变频器原始训练数据 (405 KB)
+│   ├── inverter_health_samples.csv               # 变频器健康样本数据 (1.9 KB)
+│   ├── pump_failure_test_data.csv                # 泵故障测试数据 (1.2 KB)
+│   ├── compressor_leakage_samples.csv            # 压缩机泄漏样本数据 (4.5 KB)
+│   ├── conveyor_slip_samples.csv                 # 皮带机打滑样本数据 (2.5 KB)
+│   ├── belt_conveyor_slippage_samples.csv        # 皮带机故障样本数据 (2.4 KB)
+│   ├── test_samples.csv                         # 综合测试数据 (4.4 KB)
+│   ├── data_visualization.png                   # 数据可视化图表 (274 KB)
+│   └── data_visualization.svg                   # 数据可视化图表 SVG (1.2 MB)
 │
-├── models/                                     # 模型输出目录 (预留)
+├── models/                                     # 模型输出目录
+│   ├── advanced_temp_model.onnx                  # 温度预测 ONNX 模型 (350 KB)
+│   ├── advanced_temp_model_sklearn.pkl           # 温度预测 Sklearn 模型 (722 KB)
+│   ├── pump_failure_classifier.onnx              # 泵故障分类 ONNX 模型 (308 KB)
+│   ├── pump_failure_classifier_sklearn.pkl       # 泵故障分类 Sklearn 模型 (609 KB)
+│   ├── compressor_leakage_detector.onnx          # 压缩机泄漏检测 ONNX 模型 (836 KB)
+│   ├── compressor_leakage_detector_sklearn.pkl     # 压缩机泄漏检测 Sklearn 模型 (1.8 MB)
+│   ├── shearer_cutting_unit_failure_detector.onnx # 采煤机故障检测 ONNX 模型 (99 KB)
+│   ├── shearer_cutting_unit_failure_detector_sklearn.pkl  # 采煤机故障检测 Sklearn 模型 (256 KB)
+│   ├── belt_conveyor_slippage_fault_detector.onnx  # 皮带机故障检测 ONNX 模型 (327 KB)
+│   ├── belt_conveyor_slippage_fault_detector_sklearn.pkl # 皮带机故障检测 Sklearn 模型 (783 KB)
+│   ├── conveyor_slip_model.onnx                 # 皮带机打滑 ONNX 模型 (40 KB)
+│   ├── inverter_health_multi.onnx               # 变频器健康预测 ONNX 模型 (3.6 MB)
+│   └── simple_temp_model.onnx                  # 简单温度预测 ONNX 模型 (280 B)
 │
-├── scripts/                                     # 辅助脚本目录 (预留)
+├── scripts/                                    # 模型训练和工具脚本
+│   ├── sklearn-demo.py                          # Sklearn 基础使用示例
+│   ├── check_model_output.py                    # ONNX 模型输出检查工具
+│   ├── simple_temp_model.py                     # 简单温度预测示例
+│   ├── advanced_temp_model.py                    # 温度预测模型训练
+│   ├── pump_failure_prediction.py               # 泵故障预测模型训练
+│   ├── compressor_leakage_prediction.py         # 压缩机泄漏预测模型训练
+│   ├── shearer_cutting_unit_failure_prediction.py  # 采煤机故障预测训练
+│   ├── belt_conveyor_slippage_fault_prediction.py   # 皮带机故障预测训练
+│   ├── belt_conveyor_slip_prediction.py         # 皮带机打滑预测训练
+│   ├── train_inverter_prediction.py             # 变频器健康预测训练
+│   └── pump_prediction_cpp.cpp                  # C++ 预测示例代码
 │
-├── samples/                                     # 示例数据目录
+├── md/                                         # 模型详细文档目录
+│   ├── TEMP_MODEL_README.md                     # 温度预测模型详细文档
+│   ├── PUMP_MODEL_README.md                    # 泵故障预测模型详细文档
+│   ├── COMPRESSOR_MODEL_README.md              # 压缩机泄漏预测模型详细文档
+│   ├── SHEARER_MODEL_README.md                  # 采煤机故障预测模型详细文档
+│   ├── BELT_CONVEYOR_MODEL_README.md           # 皮带机故障预测模型详细文档
+│   ├── BELT_CONVEYOR_SLIP_README.md           # 皮带机打滑预测模型详细文档
+│   ├── INVERTER_MODEL_README.md                # 变频器健康预测模型详细文档
+│   └── CPP_PREDICTION_README.md                # C++ ONNX 推理指南
 │
-├── advanced_temp_model.py                       # 温度预测模型训练脚本
-├── advanced_temp_model.onnx                     # ONNX 格式温度预测模型 (386 KB)
-├── advanced_temp_model_sklearn.pkl              # Sklearn 原始温度预测模型 (792 KB)
-│
-├── pump_failure_prediction.py                   # 泵故障预测模型训练脚本
-├── pump_failure_classifier.onnx                  # ONNX 格式泵故障分类器 (307 KB)
-├── pump_failure_classifier_sklearn.pkl           # Sklearn 原始泵故障分类器 (606 KB)
-│
-├── compressor_leakage_prediction.py            # 压缩机泄漏预测模型训练脚本
-├── compressor_leakage_detector.onnx             # ONNX 格式泄漏检测器 (836 KB)
-├── compressor_leakage_detector_sklearn.pkl      # Sklearn 原始泄漏检测器 (1.77 MB)
-│
-├── shearer_cutting_unit_failure_prediction.py   # 采煤机故障预测模型训练脚本
-├── shearer_cutting_unit_failure_detector.onnx   # ONNX 格式故障检测器 (99 KB)
-├── shearer_cutting_unit_failure_detector_sklearn.pkl  # Sklearn 原始故障检测器 (256 KB)
-│
-├── belt_conveyor_slippage_fault_prediction.py   # 皮带机打滑故障预测模型训练脚本
-├── belt_conveyor_slippage_fault_detector.onnx   # ONNX 格式故障检测器
-├── belt_conveyor_slippage_fault_detector_sklearn.pkl  # Sklearn 原始故障检测器
-│
-├── belt_conveyor_slip_prediction.py            # 皮带机打滑预测模型训练脚本
-├── conveyor_slip_model.onnx                    # ONNX 格式打滑预测模型
-│
-├── train_inverter_prediction.py                # 变频器健康预测模型训练脚本
-├── inverter_health_multi.onnx                  # ONNX 格式变频器健康预测模型
-│
-├── simple_temp_model.py                        # 简单温度预测示例
-├── simple_temp_model.onnx                      # 简单 ONNX 模型
-│
-├── sklearn-demo.py                             # Sklearn 使用示例
-├── check_model_output.py                       # 模型输出验证脚本
-│
-├── TEMP_MODEL_README.md                        # 温度预测模型详细文档
-├── PUMP_MODEL_README.md                        # 泵故障预测模型详细文档
-├── COMPRESSOR_MODEL_README.md                  # 压缩机泄漏预测模型详细文档
-├── SHEARER_MODEL_README.md                     # 采煤机故障预测模型详细文档
-├── BELT_CONVEYOR_MODEL_README.md              # 皮带机故障预测模型详细文档
-├── BELT_CONVEYOR_SLIP_README.md              # 皮带机打滑预测模型详细文档
-├── INVERTER_MODEL_README.md                   # 变频器健康预测模型详细文档
-├── CPP_PREDICTION_README.md                   # C++ ONNX 推理指南
+├── CPP_PREDICTION_README.md                    # C++ ONNX 推理指南 (根目录保留)
 └── README.md                                  # 本文档
 ```
 
@@ -124,7 +124,7 @@ onnx-demo/
 python advanced_temp_model.py
 ```
 
-**详细文档**: [TEMP_MODEL_README.md](TEMP_MODEL_README.md)
+**详细文档**: [TEMP_MODEL_README.md](md/TEMP_MODEL_README.md)
 
 ---
 
@@ -150,7 +150,7 @@ python advanced_temp_model.py
 python pump_failure_prediction.py
 ```
 
-**详细文档**: [PUMP_MODEL_README.md](PUMP_MODEL_README.md)
+**详细文档**: [PUMP_MODEL_README.md](md/PUMP_MODEL_README.md)
 
 ---
 
@@ -174,6 +174,8 @@ python pump_failure_prediction.py
 ```bash
 python compressor_leakage_prediction.py
 ```
+
+**详细文档**: [COMPRESSOR_MODEL_README.md](md/COMPRESSOR_MODEL_README.md)
 
 ---
 
@@ -200,7 +202,7 @@ python compressor_leakage_prediction.py
 python shearer_cutting_unit_failure_prediction.py
 ```
 
-**详细文档**: [SHEARER_MODEL_README.md](SHEARER_MODEL_README.md)
+**详细文档**: [SHEARER_MODEL_README.md](md/SHEARER_MODEL_README.md)
 
 ---
 
@@ -227,7 +229,7 @@ python shearer_cutting_unit_failure_prediction.py
 python belt_conveyor_slippage_fault_prediction.py
 ```
 
-**详细文档**: [BELT_CONVEYOR_MODEL_README.md](BELT_CONVEYOR_MODEL_README.md)
+**详细文档**: [BELT_CONVEYOR_MODEL_README.md](md/BELT_CONVEYOR_MODEL_README.md)
 
 ---
 
@@ -253,7 +255,7 @@ python belt_conveyor_slippage_fault_prediction.py
 python belt_conveyor_slip_prediction.py
 ```
 
-**详细文档**: [BELT_CONVEYOR_SLIP_README.md](BELT_CONVEYOR_SLIP_README.md)
+**详细文档**: [BELT_CONVEYOR_SLIP_README.md](md/BELT_CONVEYOR_SLIP_README.md)
 
 ---
 
@@ -294,7 +296,55 @@ python train_inverter_prediction.py
 - `data/data_visualization.png` - 数据可视化图表
 - `inverter_health_multi.onnx` - ONNX 预测模型
 
-**详细文档**: [INVERTER_MODEL_README.md](INVERTER_MODEL_README.md)
+**详细文档**: [INVERTER_MODEL_README.md](md/INVERTER_MODEL_README.md)
+
+---
+
+## 工具和脚本
+
+### scripts 目录说明
+
+`scripts/` 目录包含所有模型训练脚本、示例代码和工具：
+
+| 文件 | 说明 |
+|------|------|
+| `sklearn-demo.py` | Sklearn 基础使用示例，展示数据加载、探索和缺失值处理 |
+| `check_model_output.py` | ONNX 模型输出检查工具，验证模型输入输出结构 |
+| `simple_temp_model.py` | 简单温度预测示例，入门级教程 |
+| `advanced_temp_model.py` | 温度预测模型，支持 8 维特征输入 |
+| `pump_failure_prediction.py` | 泵故障预测，支持三分类（正常/磨损/汽蚀） |
+| `compressor_leakage_prediction.py` | 压缩机泄漏检测，二分类模型 |
+| `shearer_cutting_unit_failure_prediction.py` | 采煤机故障预测，二分类模型 |
+| `belt_conveyor_slippage_fault_prediction.py` | 皮带机故障预测，综合故障检测 |
+| `belt_conveyor_slip_prediction.py` | 皮带机打滑预测，专用于打滑检测 |
+| `train_inverter_prediction.py` | 变频器健康预测，多输出回归（寿命+温升） |
+| `pump_prediction_cpp.cpp` | C++ 预测示例代码，演示 ONNX Runtime C++ API 使用 |
+
+### 快速使用工具
+
+#### 检查 ONNX 模型输出
+
+```bash
+python scripts/check_model_output.py
+```
+
+输出内容包括：
+- 模型输入/输出节点名称
+- 数据类型和形状
+- 推理测试结果
+- C++ 调用所需的节点名称
+
+#### Sklearn 基础示例
+
+```bash
+python scripts/sklearn-demo.py
+```
+
+展示：
+- CSV 数据加载
+- 数据探索和统计
+- 缺失值处理
+- 相关性热力图可视化
 
 ---
 
@@ -735,13 +785,13 @@ pip install onnxruntime-gpu  # GPU 版本
 
 ## 相关文档
 
-- [温度预测模型详细文档](TEMP_MODEL_README.md) - 包含完整的 API 文档、示例代码和配置说明
-- [泵故障预测模型详细文档](PUMP_MODEL_README.md) - 包含完整的 API 文档、示例代码和配置说明
-- [压缩机泄漏预测模型详细文档](COMPRESSOR_MODEL_README.md) - 包含完整的 API 文档、示例代码和配置说明
-- [采煤机故障预测模型详细文档](SHEARER_MODEL_README.md) - 包含完整的 API 文档、示例代码和配置说明
-- [皮带机故障预测模型详细文档](BELT_CONVEYOR_MODEL_README.md) - 包含完整的 API 文档、示例代码和配置说明
-- [皮带机打滑预测模型详细文档](BELT_CONVEYOR_SLIP_README.md) - 包含完整的 API 文档、示例代码和配置说明
-- [变频器健康预测模型详细文档](INVERTER_MODEL_README.md) - 包含完整的 API 文档、示例代码和配置说明
+- [温度预测模型详细文档](md/TEMP_MODEL_README.md) - 包含完整的 API 文档、示例代码和配置说明
+- [泵故障预测模型详细文档](md/PUMP_MODEL_README.md) - 包含完整的 API 文档、示例代码和配置说明
+- [压缩机泄漏预测模型详细文档](md/COMPRESSOR_MODEL_README.md) - 包含完整的 API 文档、示例代码和配置说明
+- [采煤机故障预测模型详细文档](md/SHEARER_MODEL_README.md) - 包含完整的 API 文档、示例代码和配置说明
+- [皮带机故障预测模型详细文档](md/BELT_CONVEYOR_MODEL_README.md) - 包含完整的 API 文档、示例代码和配置说明
+- [皮带机打滑预测模型详细文档](md/BELT_CONVEYOR_SLIP_README.md) - 包含完整的 API 文档、示例代码和配置说明
+- [变频器健康预测模型详细文档](md/INVERTER_MODEL_README.md) - 包含完整的 API 文档、示例代码和配置说明
 - [C++ ONNX 推理指南](CPP_PREDICTION_README.md) - C++ 部署和推理详细指南
 
 ## 开发指南

@@ -10,6 +10,8 @@ from skl2onnx import convert_sklearn
 from skl2onnx.common.data_types import FloatTensorType
 import os
 
+# 模型说明：预测变频器 IGBT (绝缘栅双极型晶体管) 模块的未来温度，帮助实现预测性维护和过热预警
+
 # 目录配置
 base_dir = os.path.dirname(os.path.dirname(__file__))
 model_dir = os.path.join(base_dir, "models")

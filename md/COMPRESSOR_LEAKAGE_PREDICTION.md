@@ -4,7 +4,7 @@
 
 ## 模型概述
 
-压缩机泄漏预测模型是一个二分类模型，用于检测空压系统管网是否存在泄漏。通过分析 3 个关键运行参数（管网压力、供气流量、用气流量），模型可以识别正常运行和泄漏两种状态。模型采用 sklearn 管道构建，包含特征标准化和随机森林分类器。
+压缩机泄漏预测模型是一个二分类模型，用于检测空压系统管网是否存在泄漏。通过分析 **5 个特征**（包含原始参数 + 2 个衍生特征），模型可以识别正常运行和泄漏两种状态。模型采用 sklearn 管道构建，包含特征标准化、随机森林分类器，并自动处理类别不平衡问题。
 
 ## 技术栈
 
@@ -40,8 +40,24 @@ pip install onnxruntime
 | 特征名称 | 单位 | 范围 | 说明 |
 |---------|------|------|------|
 | pressure | MPa | 0.5-0.85 | 管网压力 |
-| supply_flow | m³/h | 450-560 | 供气流量 |
-| demand_flow | m³/h | 380-550 | 用气流量 |
+| supply_flow | m³/h | 300-700 | 供气流量 |
+| demand_flow | m³/h | 10-700 | 用气流量 |
+| flow_diff | m³/h | 0-90 | 供气流量与用气流量的差值 (衍生特征) |
+| flow_ratio | - | 1.0-70.0 | 供气流量与用气流量的比值 (衍生特征) |
+
+### 衍生特征说明
+
+**FlowDiff (流量差值)**
+- 计算公式: `FlowDiff = SupplyFlow - DemandFlow`
+- 正常状态: 5-20 m³/h（管道和设备微小损耗）
+- 泄漏状态: 15-90 m³/h（包含泄漏量）
+- 作用: 直接反映流量损失量，是泄漏检测的核心特征
+
+**FlowRatio (流量比值)**
+- 计算公式: `FlowRatio = SupplyFlow / (DemandFlow + 1e-5)`
+- 正常状态: 接近 1.0-1.1
+- 泄漏状态: 可能显著大于 1.1（极端情况下可达 70）
+- 作用: 比值能消除绝对值的影响，对小流量场景更敏感
 
 ## 预测类别
 
@@ -75,7 +91,9 @@ Pipeline([
     ('classifier', RandomForestClassifier(            # 随机森林分类器
         n_estimators=100,     # 100棵决策树
         random_state=42,      # 随机种子
-        n_jobs=-1            # 使用所有CPU核心
+        n_jobs=-1,           # 使用所有CPU核心
+        class_weight='balanced',  # 自动处理类别不平衡
+        max_depth=10          # 限制深度防止过拟合
     ))
 ])
 ```
@@ -84,6 +102,8 @@ Pipeline([
 
 - **集成学习**: 100 棵决策树的随机森林
 - **二分类支持**: 识别正常和泄漏两种状态
+- **特征工程**: 衍生 FlowDiff 和 FlowRatio 两个特征提升检测精度
+- **类别平衡**: 使用 `class_weight='balanced'` 自动处理不平衡（正常:泄漏 = 7:3）
 - **特征重要性**: 可分析各特征对分类的贡献
 - **概率输出**: 提供各类别的置信度
 - **抗过拟合**: 通过集成和随机采样提高泛化能力
@@ -172,11 +192,13 @@ import numpy as np
 # 加载模型
 pipeline = joblib.load('compressor_leakage_detector_sklearn.pkl')
 
-# 准备输入数据 (3 个特征)
+# 准备输入数据 (5 个特征：Pressure, SupplyFlow, DemandFlow, FlowDiff, FlowRatio)
 input_data = np.array([[
-    0.75,    # pressure (MPa)
-    500.0,   # supply_flow (m³/h)
-    490.0    # demand_flow (m³/h)
+    0.75,    # Pressure (MPa)
+    500.0,   # SupplyFlow (m³/h)
+    490.0,   # DemandFlow (m³/h)
+    10.0,    # FlowDiff = SupplyFlow - DemandFlow (m³/h)
+    1.02     # FlowRatio = SupplyFlow / DemandFlow
 ]]).astype(np.float32)
 
 # 预测
@@ -196,11 +218,13 @@ import numpy as np
 # 加载 ONNX 模型
 session = ort.InferenceSession('compressor_leakage_detector.onnx')
 
-# 准备输入数据
+# 准备输入数据 (5 个特征)
 input_data = np.array([[
-    0.75,    # pressure (MPa)
-    500.0,   # supply_flow (m³/h)
-    490.0    # demand_flow (m³/h)
+    0.75,    # Pressure (MPa)
+    500.0,   # SupplyFlow (m³/h)
+    490.0,   # DemandFlow (m³/h)
+    10.0,    # FlowDiff (m³/h)
+    1.02     # FlowRatio
 ]]).astype(np.float32)
 
 # 预测
@@ -224,7 +248,7 @@ import numpy as np
 session = ort.InferenceSession('compressor_leakage_detector.onnx')
 
 # 批量预测
-batch_data = np.random.rand(100, 3).astype(np.float32)
+batch_data = np.random.rand(100, 5).astype(np.float32)
 outputs = session.run(None, {'float_input': batch_data})
 labels = outputs[0]
 probabilities = outputs[1]
@@ -268,7 +292,7 @@ weighted avg       0.96      0.96      0.96      2000
 ✅ scikit-learn 模型已保存至: compressor_leakage_detector_sklearn.pkl
 
 8. 验证 ONNX 模型一致性...
-   - 测试样本输入: [0.68 480. 400.]
+   - 测试样本输入: [0.68 480. 400.  80.    1.2 ]
    - scikit-learn 预测 (0:正常, 1:泄漏): 1
    - scikit-learn 概率: [0.03 0.97]
    - ONNX 模型预测 (0:正常, 1:泄漏): 1
@@ -288,7 +312,7 @@ class CompressorLeakageDetector:
     def __init__(self, model_path='compressor_leakage_detector.onnx'):
         self.session = ort.InferenceSession(model_path)
 
-    def predict(self, pressure, supply_flow, demand_flow):
+    def predict(self, pressure, supply_flow, demand_flow, flow_diff, flow_ratio):
         """
         预测泄漏状态
 
@@ -296,6 +320,8 @@ class CompressorLeakageDetector:
             pressure: 管网压力 (MPa)
             supply_flow: 供气流量 (m³/h)
             demand_flow: 用气流量 (m³/h)
+            flow_diff: 流量差值 (m³/h)
+            flow_ratio: 流量比值
 
         返回:
             dict: {
@@ -305,7 +331,7 @@ class CompressorLeakageDetector:
                 'leakage_amount': 泄漏量估算
             }
         """
-        input_data = np.array([[pressure, supply_flow, demand_flow]]).astype(np.float32)
+        input_data = np.array([[pressure, supply_flow, demand_flow, flow_diff, flow_ratio]]).astype(np.float32)
 
         outputs = self.session.run(None, {'float_input': input_data})
         label_idx = int(outputs[0][0])
@@ -339,7 +365,7 @@ class CompressorLeakageDetector:
 
 # 使用示例
 detector = CompressorLeakageDetector()
-result = detector.predict(pressure=0.68, supply_flow=480, demand_flow=400)
+result = detector.predict(pressure=0.68, supply_flow=480, demand_flow=400, flow_diff=80, flow_ratio=1.2)
 
 print(f"预测状态: {result['prediction']}")
 print(f"置信度: {result['confidence']:.2%}")
@@ -357,14 +383,17 @@ print(f"风险等级: {risk_level[0]}")
 ```python
 # 正常运行状态 (70%)
 pressure_normal: N(0.75, 0.05), range: 0.6-0.85
-supply_flow_normal: N(500, 20), range: 450-550
-demand_flow_normal = supply_flow - N(10, 5), range: supply-20 to supply-5
+supply_flow_normal: N(500, 50), range: 300-700
+# 正常损耗：基础损耗 5-15 + 动态损耗（流量的 0.5%-1.5%）
+base_loss: Uniform(5, 15)
+dynamic_loss: supply_flow * 0.01 * Uniform(0.5, 1.5)
+demand_flow_normal = supply_flow - (base_loss + dynamic_loss)
 
 # 泄漏状态 (30%)
 pressure_leak: N(0.70, 0.08), range: 0.5-0.8
-supply_flow_leak: N(510, 25), range: 460-560
-leakage_amount: Uniform(30, 80)
-demand_flow_leak = supply_flow - leakage_amount
+supply_flow_leak: N(500, 50), range: 300-700
+leakage_amount: Uniform(15, 90)  # 包含与正常损耗重叠的范围（15-25）
+demand_flow_leak = max(supply_flow - leakage_amount, 10)
 ```
 
 ### 数据生成函数
@@ -373,34 +402,44 @@ demand_flow_leak = supply_flow - leakage_amount
 def generate_compressor_data(n_samples=10000):
     """
     生成模拟的空压站运行数据，包括正常和泄漏两种状态。
+    包含特征工程：FlowDiff 和 FlowRatio。
 
     返回:
-        X: 特征矩阵 (n_samples, 3)
+        X: 特征矩阵 (n_samples, 5)
         y: 标签数组 (n_samples,), 0=正常, 1=泄漏
     """
     np.random.seed(42)
     data = []
     labels = []
 
-    # 正常状态
+    # 正常状态 (70%)
     n_normal = int(n_samples * 0.7)
     pressure_normal = np.random.normal(0.75, 0.05, n_normal).clip(0.6, 0.85)
-    supply_flow_normal = np.random.normal(500, 20, n_normal).clip(450, 550)
-    demand_flow_normal = supply_flow_normal - np.random.normal(10, 5, n_normal).clip(5, 20)
+    supply_flow_normal = np.random.normal(500, 50, n_normal).clip(300, 700)
+    base_loss = np.random.uniform(5, 15, size=n_normal)
+    dynamic_loss = supply_flow_normal * 0.01 * np.random.uniform(0.5, 1.5, size=n_normal)
+    total_loss = base_loss + dynamic_loss
+    demand_flow_normal = supply_flow_normal - total_loss
 
     for i in range(n_normal):
-        data.append([pressure_normal[i], supply_flow_normal[i], demand_flow_normal[i]])
+        diff = supply_flow_normal[i] - demand_flow_normal[i]
+        ratio = supply_flow_normal[i] / (demand_flow_normal[i] + 1e-5)
+        data.append([pressure_normal[i], supply_flow_normal[i],
+                   demand_flow_normal[i], diff, ratio])
         labels.append(0)
 
-    # 泄漏状态
+    # 泄漏状态 (30%)
     n_leak = n_samples - n_normal
     pressure_leak = np.random.normal(0.70, 0.08, n_leak).clip(0.5, 0.8)
-    supply_flow_leak = np.random.normal(510, 25, n_leak).clip(460, 560)
-    leakage_amount = np.random.uniform(30, 80, n_leak)
-    demand_flow_leak = supply_flow_leak - leakage_amount
+    supply_flow_leak = np.random.normal(500, 50, n_leak).clip(300, 700)
+    leakage_amount = np.random.uniform(15, 90, size=n_leak)
+    demand_flow_leak = np.maximum(supply_flow_leak - leakage_amount, 10)
 
     for i in range(n_leak):
-        data.append([pressure_leak[i], supply_flow_leak[i], demand_flow_leak[i]])
+        diff = supply_flow_leak[i] - demand_flow_leak[i]
+        ratio = supply_flow_leak[i] / (demand_flow_leak[i] + 1e-5)
+        data.append([pressure_leak[i], supply_flow_leak[i],
+                   demand_flow_leak[i], diff, ratio])
         labels.append(1)
 
     return np.array(data), np.array(labels)
@@ -430,7 +469,7 @@ def generate_compressor_data(n_samples=10000):
 | 准确率 | ~96% |
 | 宏平均 | ~95% |
 | 加权平均 | ~96% |
-| 特征数量 | 3 |
+| 特征数量 | 5（含 2 个衍生特征） |
 | 训练样本 | 8000 |
 | 测试样本 | 2000 |
 | 模型大小 | 836 KB (ONNX) |
@@ -497,7 +536,7 @@ pipeline = joblib.load('compressor_leakage_detector_sklearn.pkl')
 session = ort.InferenceSession('compressor_leakage_detector.onnx')
 
 # 测试数据
-test_data = np.random.rand(10, 3).astype(np.float32)
+test_data = np.random.rand(10, 5).astype(np.float32)
 
 # 预测对比
 sklearn_pred = pipeline.predict(test_data)
@@ -537,10 +576,10 @@ public:
         std::cout << "✅ 模型加载成功" << std::endl;
     }
 
-    void predict(float pressure, float supply_flow, float demand_flow) {
+    void predict(float pressure, float supply_flow, float demand_flow, float flow_diff, float flow_ratio) {
         // 准备输入
-        std::vector<float> input_data = {pressure, supply_flow, demand_flow};
-        std::vector<int64_t> input_shape = {1, 3};
+        std::vector<float> input_data = {pressure, supply_flow, demand_flow, flow_diff, flow_ratio};
+        std::vector<int64_t> input_shape = {1, 5};
 
         // 创建张量
         Ort::MemoryInfo memory_info = Ort::MemoryInfo::CreateCpu(
@@ -566,7 +605,8 @@ public:
         // 输出
         std::cout << "\n=== 预测结果 ===" << std::endl;
         std::cout << "输入: 压力=" << pressure << "MPa, 供气流量=" << supply_flow
-                  << "m³/h, 用气流量=" << demand_flow << "m³/h" << std::endl;
+                  << "m³/h, 用气流量=" << demand_flow << "m³/h, 流量差=" << flow_diff
+                  << "m³/h, 流量比=" << flow_ratio << std::endl;
         std::cout << "预测: " << (label == 1 ? "泄漏" : "正常") << std::endl;
         std::cout << "正常概率: " << proba[0] * 100 << "%" << std::endl;
         std::cout << "泄漏概率: " << proba[1] * 100 << "%" << std::endl;
@@ -596,13 +636,13 @@ int main() {
 
         // 测试不同工况
         std::cout << "\n【测试1: 正常工况】" << std::endl;
-        detector.predict(0.75f, 500.0f, 490.0f);
+        detector.predict(0.75f, 500.0f, 490.0f, 10.0f, 1.02f);
 
         std::cout << "\n【测试2: 泄漏工况】" << std::endl;
-        detector.predict(0.68f, 480.0f, 400.0f);
+        detector.predict(0.68f, 480.0f, 400.0f, 80.0f, 1.2f);
 
         std::cout << "\n【测试3: 临界状态】" << std::endl;
-        detector.predict(0.72f, 510.0f, 475.0f);
+        detector.predict(0.72f, 510.0f, 475.0f, 35.0f, 1.074f);
 
     } catch (const Ort::Exception& e) {
         std::cerr << "ONNX Runtime 错误: " << e.what() << std::endl;
@@ -624,7 +664,7 @@ import * as ort from 'onnxruntime-web';
 const session = await ort.InferenceSession.create('compressor_leakage_detector.onnx');
 
 // 准备输入
-const input = new ort.Tensor('float32', [0.75, 500.0, 490.0], [1, 3]);
+const input = new ort.Tensor('float32', [0.75, 500.0, 490.0, 10.0, 1.02], [1, 5]);
 
 // 运行推理
 const outputs = await session.run({ float_input: input });
@@ -972,7 +1012,7 @@ def estimate_leakage(pressure, supply_flow, demand_flow):
 |------|---------|---------|-----------|
 | 模型类型 | 分类 | 回归 | 分类 |
 | 输出 | 类别标签 | 连续数值 | 类别标签 |
-| 特征数量 | 3 | 8 | 4 |
+| 特征数量 | 5（含 2 个衍生特征） | 8 | 4 |
 | 样本数量 | 10000 | 5000 | 10000 |
 | 模型 | 随机森林 | 梯度提升 | 随机森林 |
 | 应用场景 | 泄漏检测 | 温度预测 | 故障诊断 |

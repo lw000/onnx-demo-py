@@ -176,6 +176,71 @@ X_scaled = scaler.fit_transform(X)
 - [变频器健康预测模型](TRAIN_INVERTER_PREDICTION.md) - 电容寿命和温升异常预测
 - [高级温度预测模型](ADVANCED_TEMP_MODEL.md) - 设备温度预测
 
+## 模型参数调优
+
+### 可调参数
+
+本模型使用 `RandomForestRegressor`，以下是关键可调参数：
+
+| 参数 | 当前值 | 说明 | 调优建议 |
+|------|--------|------|----------|
+| n_estimators | 100 | 决策树数量 | 50-300，越多越稳定但越慢 |
+| max_depth | 10 | 树的最大深度 | 8-15，控制过拟合 |
+| min_samples_split | 2 | 节点分裂最小样本数 | 2-10，防止过拟合 |
+| min_samples_leaf | 1 | 叶节点最小样本数 | 1-5，防止过拟合 |
+| max_features | sqrt | 每棵树考虑的特征数 | auto/sqrt/log2 |
+
+### 调优函数
+
+```python
+from sklearn.model_selection import GridSearchCV
+from sklearn.ensemble import RandomForestRegressor
+from sklearn.metrics import make_scorer, mean_squared_error
+
+# 定义参数网格
+param_grid = {
+    'n_estimators': [50, 100, 200],
+    'max_depth': [8, 10, 12, None],
+    'min_samples_split': [2, 5, 10],
+    'min_samples_leaf': [1, 2, 4],
+    'max_features': ['auto', 'sqrt', 'log2']
+}
+
+# 创建模型
+model = RandomForestRegressor(random_state=42, n_jobs=-1)
+
+# 网格搜索
+grid_search = GridSearchCV(
+    model,
+    param_grid,
+    cv=5,
+    scoring='neg_mean_squared_error',
+    n_jobs=-1
+)
+grid_search.fit(X_train, y_train)
+
+print(f"最佳参数: {grid_search.best_params_}")
+print(f"最佳 MSE: {-grid_search.best_score_:.4f}")
+
+# 使用最佳参数
+best_model = grid_search.best_estimator_
+```
+
+### 调优步骤
+
+1. **基准测试**: 使用当前参数训练，记录 MSE 和 R²
+2. **网格搜索**: 使用 `GridSearchCV` 寻找最优参数组合
+3. **交叉验证**: 5折交叉验证确保稳定性
+4. **性能对比**: 对比调优前后的 MSE 和 R²
+5. **部署验证**: 重新导出 ONNX 模型并验证一致性
+
+### 注意事项
+
+- **数据生成公式系数**（40, 0.4, 10, 0.5, 5）是模拟数据参数，**不需要调整**
+- 只需调整机器学习模型的超参数
+- 调整参数后需重新训练并导出 ONNX 模型
+- 确保调优不会导致过拟合（测试集性能下降）
+
 ## 更新日志
 
 | 日期 | 版本 | 更新内容 |

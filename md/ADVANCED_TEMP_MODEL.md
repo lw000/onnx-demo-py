@@ -536,6 +536,80 @@ y = (
 ) + np.random.normal(0, 0.5, size=n_samples)      # 添加噪声
 ```
 
+**注意**: 以上系数（0.6, 0.25, 0.15 等）是模拟数据生成参数，用于生成训练数据。**模型微调时不需要调整这些系数**。
+
+## 模型参数调优
+
+### 可调参数
+
+本模型使用 `GradientBoostingRegressor`，以下是关键可调参数：
+
+| 参数 | 当前值 | 说明 | 调优建议 |
+|------|--------|------|----------|
+| n_estimators | 200 | 决策树数量 | 100-500，越多越稳定但越慢 |
+| max_depth | 5 | 树的最大深度 | 3-8，控制过拟合 |
+| learning_rate | 0.1 | 学习率 | 0.01-0.2，降低需增加 n_estimators |
+| min_samples_split | 10 | 节点分裂最小样本数 | 5-20，防止过拟合 |
+| min_samples_leaf | 5 | 叶节点最小样本数 | 2-10，防止过拟合 |
+| polynomial degree | 2 | 多项式特征阶数 | 2-3，阶数过高易过拟合 |
+
+### 调优函数
+
+```python
+from sklearn.model_selection import GridSearchCV
+from sklearn.pipeline import Pipeline
+from sklearn.preprocessing import StandardScaler, PolynomialFeatures
+from sklearn.ensemble import GradientBoostingRegressor
+
+# 定义参数网格
+param_grid = {
+    'model__n_estimators': [100, 200, 300],
+    'model__max_depth': [3, 5, 7],
+    'model__learning_rate': [0.05, 0.1, 0.2],
+    'model__min_samples_split': [5, 10, 20],
+    'poly__degree': [2, 3]
+}
+
+# 创建管道
+pipeline = Pipeline([
+    ('scaler', StandardScaler()),
+    ('poly', PolynomialFeatures()),
+    ('model', GradientBoostingRegressor(random_state=42))
+])
+
+# 网格搜索
+grid_search = GridSearchCV(
+    pipeline,
+    param_grid,
+    cv=5,
+    scoring='neg_mean_squared_error',
+    n_jobs=-1
+)
+grid_search.fit(X_train, y_train)
+
+print(f"最佳参数: {grid_search.best_params_}")
+print(f"最佳 R²: {grid_search.best_score_:.4f}")
+
+# 使用最佳参数
+best_pipeline = grid_search.best_estimator_
+```
+
+### 调优步骤
+
+1. **基准测试**: 使用当前参数训练，记录 R² 得分
+2. **网格搜索**: 使用 `GridSearchCV` 寻找最优参数组合
+3. **交叉验证**: 5折交叉验证确保稳定性
+4. **性能对比**: 对比调优前后的训练集和测试集 R²
+5. **部署验证**: 重新导出 ONNX 模型并验证一致性
+
+### 注意事项
+
+- **数据生成公式系数**（0.6, 0.25, 0.15 等）是模拟数据参数，**不需要调整**
+- 只需调整机器学习模型的超参数
+- 降低 `learning_rate` 时应同步增加 `n_estimators`
+- 多项式阶数过高（>3）会导致特征爆炸和过拟合
+- 调整参数后需重新训练并导出 ONNX 模型
+
 ## 许可证
 
 MIT License

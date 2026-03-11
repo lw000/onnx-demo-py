@@ -86,10 +86,10 @@ model_pipeline = Pipeline([
     ('regressor', RandomForestRegressor(
         n_estimators=100,    # 树的数量，增加可提高精度但更慢
         max_depth=10,        # 树的最大深度，控制过拟合
-        random_state=42, 
-        # min_samples_split=2, # 节点分裂最小样本数
-        # min_samples_leaf=1,  # 叶节点最小样本数
-        # max_features='sqrt',  # 每棵树考虑的特征数，sqrt 是常用选择
+        min_samples_split=2, # 节点分裂最小样本数
+        min_samples_leaf=1,  # 叶节点最小样本数
+        max_features='sqrt',  # 每棵树考虑的特征数，sqrt 是常用选择
+        random_state=42, # 随机种子
         n_jobs=-1
     ))
 ])

@@ -85,14 +85,18 @@ onnx-demo/
 │   └── pump_prediction_cpp.cpp                  # C++ 预测示例代码
 │
 ├── md/                                         # 模型详细文档目录
-│   ├── TEMP_MODEL_README.md                     # 温度预测模型详细文档
-│   ├── PUMP_MODEL_README.md                    # 泵故障预测模型详细文档
-│   ├── COMPRESSOR_MODEL_README.md              # 压缩机泄漏预测模型详细文档
-│   ├── SHEARER_MODEL_README.md                  # 采煤机故障预测模型详细文档
-│   ├── BELT_CONVEYOR_MODEL_README.md           # 皮带机故障预测模型详细文档
-│   ├── BELT_CONVEYOR_SLIP_README.md           # 皮带机打滑预测模型详细文档
-│   ├── INVERTER_MODEL_README.md                # 变频器健康预测模型详细文档
-│   └── CPP_PREDICTION_README.md                # C++ ONNX 推理指南
+│   ├── ADVANCED_TEMP_MODEL.md                  # 温度预测模型详细文档
+│   ├── PUMP_FAILURE_PREDICTION.md              # 泵故障预测模型详细文档
+│   ├── COMPRESSOR_LEAKAGE_PREDICTION.md        # 压缩机泄漏预测模型详细文档
+│   ├── SHEARER_CUTTING_UNIT_FAILURE_PREDICTION.md  # 采煤机故障预测模型详细文档
+│   ├── BELT_CONVEYOR_SLIPPAGE_FAULT_PREDICTION.md  # 皮带机故障预测模型详细文档
+│   ├── BELT_CONVEYOR_SLIP_PREDICTION.md        # 皮带机打滑预测模型详细文档
+│   ├── TRAIN_INVERTER_PREDICTION.md            # 变频器健康预测模型详细文档
+│   ├── TRAIN_IGBT_MODEL.md                     # IGBT 温度预测模型详细文档
+│   ├── SIMPLE_TEMP_MODEL.md                    # 简单温度预测模型文档
+│   ├── PUMP_PREDICTION_CPP.md                  # C++ ONNX 推理指南
+│   ├── CHECK_MODEL_OUTPUT.md                   # 模型输出检查工具文档
+│   └── SKLEARN_DEMO.md                         # Sklearn 基础示例文档
 │
 ├── CPP_PREDICTION_README.md                    # C++ ONNX 推理指南 (根目录保留)
 └── README.md                                  # 本文档
@@ -124,7 +128,7 @@ onnx-demo/
 python advanced_temp_model.py
 ```
 
-**详细文档**: [TEMP_MODEL_README.md](md/TEMP_MODEL_README.md)
+**详细文档**: [ADVANCED_TEMP_MODEL.md](md/ADVANCED_TEMP_MODEL.md)
 
 ---
 
@@ -150,7 +154,7 @@ python advanced_temp_model.py
 python pump_failure_prediction.py
 ```
 
-**详细文档**: [PUMP_MODEL_README.md](md/PUMP_MODEL_README.md)
+**详细文档**: [PUMP_FAILURE_PREDICTION.md](md/PUMP_FAILURE_PREDICTION.md)
 
 ---
 
@@ -175,7 +179,7 @@ python pump_failure_prediction.py
 python compressor_leakage_prediction.py
 ```
 
-**详细文档**: [COMPRESSOR_MODEL_README.md](md/COMPRESSOR_MODEL_README.md)
+**详细文档**: [COMPRESSOR_LEAKAGE_PREDICTION.md](md/COMPRESSOR_LEAKAGE_PREDICTION.md)
 
 ---
 
@@ -202,7 +206,7 @@ python compressor_leakage_prediction.py
 python shearer_cutting_unit_failure_prediction.py
 ```
 
-**详细文档**: [SHEARER_MODEL_README.md](md/SHEARER_MODEL_README.md)
+**详细文档**: [SHEARER_CUTTING_UNIT_FAILURE_PREDICTION.md](md/SHEARER_CUTTING_UNIT_FAILURE_PREDICTION.md)
 
 ---
 
@@ -229,7 +233,7 @@ python shearer_cutting_unit_failure_prediction.py
 python belt_conveyor_slippage_fault_prediction.py
 ```
 
-**详细文档**: [BELT_CONVEYOR_MODEL_README.md](md/BELT_CONVEYOR_MODEL_README.md)
+**详细文档**: [BELT_CONVEYOR_SLIPPAGE_FAULT_PREDICTION.md](md/BELT_CONVEYOR_SLIPPAGE_FAULT_PREDICTION.md)
 
 ---
 
@@ -255,7 +259,7 @@ python belt_conveyor_slippage_fault_prediction.py
 python belt_conveyor_slip_prediction.py
 ```
 
-**详细文档**: [BELT_CONVEYOR_SLIP_README.md](md/BELT_CONVEYOR_SLIP_README.md)
+**详细文档**: [BELT_CONVEYOR_SLIP_PREDICTION.md](md/BELT_CONVEYOR_SLIP_PREDICTION.md)
 
 ---
 
@@ -296,7 +300,7 @@ python train_inverter_prediction.py
 - `data/data_visualization.png` - 数据可视化图表
 - `inverter_health_multi.onnx` - ONNX 预测模型
 
-**详细文档**: [INVERTER_MODEL_README.md](md/INVERTER_MODEL_README.md)
+**详细文档**: [TRAIN_INVERTER_PREDICTION.md](md/TRAIN_INVERTER_PREDICTION.md)
 
 ---
 
@@ -785,14 +789,18 @@ pip install onnxruntime-gpu  # GPU 版本
 
 ## 相关文档
 
-- [温度预测模型详细文档](md/TEMP_MODEL_README.md) - 包含完整的 API 文档、示例代码和配置说明
-- [泵故障预测模型详细文档](md/PUMP_MODEL_README.md) - 包含完整的 API 文档、示例代码和配置说明
-- [压缩机泄漏预测模型详细文档](md/COMPRESSOR_MODEL_README.md) - 包含完整的 API 文档、示例代码和配置说明
-- [采煤机故障预测模型详细文档](md/SHEARER_MODEL_README.md) - 包含完整的 API 文档、示例代码和配置说明
-- [皮带机故障预测模型详细文档](md/BELT_CONVEYOR_MODEL_README.md) - 包含完整的 API 文档、示例代码和配置说明
-- [皮带机打滑预测模型详细文档](md/BELT_CONVEYOR_SLIP_README.md) - 包含完整的 API 文档、示例代码和配置说明
-- [变频器健康预测模型详细文档](md/INVERTER_MODEL_README.md) - 包含完整的 API 文档、示例代码和配置说明
-- [C++ ONNX 推理指南](CPP_PREDICTION_README.md) - C++ 部署和推理详细指南
+- [温度预测模型详细文档](md/ADVANCED_TEMP_MODEL.md) - 包含完整的 API 文档、示例代码和配置说明
+- [泵故障预测模型详细文档](md/PUMP_FAILURE_PREDICTION.md) - 包含完整的 API 文档、示例代码和配置说明
+- [压缩机泄漏预测模型详细文档](md/COMPRESSOR_LEAKAGE_PREDICTION.md) - 包含完整的 API 文档、示例代码和配置说明
+- [采煤机故障预测模型详细文档](md/SHEARER_CUTTING_UNIT_FAILURE_PREDICTION.md) - 包含完整的 API 文档、示例代码和配置说明
+- [皮带机故障预测模型详细文档](md/BELT_CONVEYOR_SLIPPAGE_FAULT_PREDICTION.md) - 包含完整的 API 文档、示例代码和配置说明
+- [皮带机打滑预测模型详细文档](md/BELT_CONVEYOR_SLIP_PREDICTION.md) - 包含完整的 API 文档、示例代码和配置说明
+- [变频器健康预测模型详细文档](md/TRAIN_INVERTER_PREDICTION.md) - 包含完整的 API 文档、示例代码和配置说明
+- [IGBT 温度预测模型详细文档](md/TRAIN_IGBT_MODEL.md) - 包含完整的 API 文档、示例代码和配置说明
+- [简单温度预测模型文档](md/SIMPLE_TEMP_MODEL.md) - 入门级温度预测示例
+- [C++ ONNX 推理指南](md/PUMP_PREDICTION_CPP.md) - C++ 部署和推理详细指南
+- [模型输出检查工具](md/CHECK_MODEL_OUTPUT.md) - ONNX 模型输出验证工具
+- [Sklearn 基础示例](md/SKLEARN_DEMO.md) - Sklearn 基础使用教程
 
 ## 开发指南
 

@@ -155,6 +155,7 @@ X_scaled = scaler.fit_transform(X)
 |------|------|------|
 | ONNX 模型 | `models/inverter_temp.onnx` | 跨平台部署格式 |
 | 训练脚本 | `scripts/train_igbt_model.py` | 模型训练代码 |
+| 训练数据 | `data/igbt_temp_samples.csv` | IGBT 温度样本数据 |
 
 ## 扩展建议
 
@@ -172,11 +173,12 @@ X_scaled = scaler.fit_transform(X)
 
 ## 相关模型
 
-- [变频器健康预测模型](INVERTER_MODEL_README.md) - 电容寿命和温升异常预测
-- [温度预测模型](TEMP_MODEL_README.md) - 设备温度预测
+- [变频器健康预测模型](TRAIN_INVERTER_PREDICTION.md) - 电容寿命和温升异常预测
+- [高级温度预测模型](ADVANCED_TEMP_MODEL.md) - 设备温度预测
 
 ## 更新日志
 
 | 日期 | 版本 | 更新内容 |
 |------|------|----------|
+| 2026-03-11 | 1.1.0 | 训练数据迁移至 data 目录 |
 | 2026-03-09 | 1.0.0 | 初始版本，支持 IGBT 温度预测 |

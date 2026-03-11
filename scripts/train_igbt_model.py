@@ -15,7 +15,7 @@ import os
 # 目录配置
 base_dir = os.path.dirname(os.path.dirname(__file__))
 model_dir = os.path.join(base_dir, "models")
-samples_dir = os.path.join(base_dir, "samples")
+samples_dir = os.path.join(base_dir, "data")
 os.makedirs(model_dir, exist_ok=True)
 os.makedirs(samples_dir, exist_ok=True)
 
@@ -45,12 +45,12 @@ def generate_training_data(n_samples=5000):
     # 标签：未来 5 秒后的 IGBT 温度 (构造一个物理逻辑公式 + 噪声)
     # 假设基础温度 40，电流和负载影响大，温升速率影响直接
     df['target_temp'] = (
-        40 + 
-        0.4 * df['current'] + 
-        10 * df['load_factor'] + 
-        0.5 * df['ambient_temp'] + 
-        5 * df['temp_rate'] + 
-        np.random.normal(0, 2, n_samples) # 噪声
+        40 +                    # 基础温度：IGBT 静态温度
+        0.4 * df['current'] +   # 电流系数：每增加1A，温度上升约0.4°C
+        10 * df['load_factor'] + # 负载系数：负载率每增加0.1，温度上升约1°C
+        0.5 * df['ambient_temp'] + # 环境温度系数：环境温度影响散热
+        5 * df['temp_rate'] +   # 温升速率系数：温度变化趋势影响
+        np.random.normal(0, 2, n_samples)  # 噪声：模拟真实测量误差
     )
     
     # 保存到 CSV
@@ -84,9 +84,12 @@ X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_
 model_pipeline = Pipeline([
     ('scaler', StandardScaler()),
     ('regressor', RandomForestRegressor(
-        n_estimators=100, 
-        max_depth=10, 
+        n_estimators=100,    # 树的数量，增加可提高精度但更慢
+        max_depth=10,        # 树的最大深度，控制过拟合
         random_state=42, 
+        # min_samples_split=2, # 节点分裂最小样本数
+        # min_samples_leaf=1,  # 叶节点最小样本数
+        # max_features='sqrt',  # 每棵树考虑的特征数，sqrt 是常用选择
         n_jobs=-1
     ))
 ])

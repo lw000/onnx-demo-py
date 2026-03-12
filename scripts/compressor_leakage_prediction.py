@@ -69,13 +69,94 @@ def generate_compressor_data(n_samples=10000):
 
     return np.array(data), np.array(labels)
 
+def save_data_to_csv(X, y, feature_names, filepath):
+    """将生成的数据保存到 CSV 文件"""
+    df = pd.DataFrame(X, columns=feature_names)
+    df['label'] = y
+    df['label'] = df['label'].map({0: 'normal', 1: 'leak'})
+    df.to_csv(filepath, index=False)
+    print(f"[OK] 数据已保存至: {filepath}")
+
+def load_and_clean_data(filepath, feature_names):
+    """从 CSV 文件加载数据并进行清洗"""
+    print(f"从 CSV 加载数据: {filepath}")
+
+    # 加载数据
+    df = pd.read_csv(filepath)
+
+    print(f"原始数据形状: {df.shape}")
+
+    # 数据清洗
+    # 1. 检查缺失值
+    missing_count = df.isnull().sum().sum()
+    if missing_count > 0:
+        print(f"发现 {missing_count} 个缺失值，已删除")
+        df = df.dropna()
+
+    # 2. 检查异常值（压力应在合理范围内）
+    df = df[(df['Pressure'] >= 0.4) & (df['Pressure'] <= 0.9)]
+
+    # 3. 检查流量异常（不应为负值）
+    df = df[(df['SupplyFlow'] > 0) & (df['DemandFlow'] > 0)]
+
+    # 4. 检查衍生特征的合理性
+    # FlowDiff 应该非负
+    df = df[df['FlowDiff'] >= 0]
+
+    # FlowRatio 应该合理（1.0 - 100.0）
+    df = df[(df['FlowRatio'] >= 1.0) & (df['FlowRatio'] <= 100.0)]
+
+    # 5. 检查标签
+    df = df[df['label'].isin(['normal', 'leak'])]
+
+    # 去重
+    before_dedup = len(df)
+    df = df.drop_duplicates()
+    if len(df) < before_dedup:
+        print(f"删除了 {before_dedup - len(df)} 条重复记录")
+
+    print(f"清洗后数据形状: {df.shape}")
+
+    # 提取特征和标签
+    X = df[feature_names].values
+    y = df['label'].map({'normal': 0, 'leak': 1}).values
+
+    return X, y
+
 def main():
     print("--- 开始训练优化的空压系统泄漏预测模型 ---")
 
-    # 1. 生成数据 (现在包含 5 个特征)
-    X, y = generate_compressor_data()
+    # 特征名称定义
     feature_names = ["Pressure", "SupplyFlow", "DemandFlow", "FlowDiff", "FlowRatio"]
     print(f"特征列表: {feature_names}")
+
+    # CSV 文件路径
+    csv_path = os.path.join(samples_dir, "compressor_leakage_train_data.csv")
+
+    # 检查是否已存在 CSV 文件
+    regenerate_data = False
+
+    if os.path.exists(csv_path):
+        print(f"\n发现已存在的数据文件: {csv_path}")
+        choice = input("是否重新生成数据？(y/n, 默认 n): ").strip().lower()
+        regenerate_data = (choice == 'y')
+    else:
+        regenerate_data = True
+
+    if regenerate_data:
+        # 1. 生成数据 (包含 5 个特征)
+        X, y = generate_compressor_data()
+        print(f"\n生成数据完成: {len(X)} 条样本")
+
+        # 2. 保存到 CSV
+        save_data_to_csv(X, y, feature_names, csv_path)
+    else:
+        # 3. 从 CSV 加载数据并清洗
+        X, y = load_and_clean_data(csv_path, feature_names)
+
+    print(f"最终数据集: {len(X)} 条样本")
+    print(f"正常样本: {np.sum(y == 0)} 条 ({np.sum(y == 0) / len(y):.1%})")
+    print(f"泄漏样本: {np.sum(y == 1)} 条 ({np.sum(y == 1) / len(y):.1%})")
 
     # 2. 划分数据集 (保持分层采样)
     X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42, stratify=y)
@@ -133,12 +214,12 @@ def main():
     onnx_model_path = os.path.join(model_dir, "compressor_leakage_detector.onnx")
     with open(onnx_model_path, "wb") as f:
         f.write(onnx_model.SerializeToString())
-    print(f"✅ ONNX 模型已保存至: {onnx_model_path}")
+    print(f"[OK] ONNX 模型已保存至: {onnx_model_path}")
 
     # 7. 保存原始模型 (可选)
     pkl_model_path = os.path.join(model_dir, "compressor_leakage_detector_sklearn.pkl")
     joblib.dump(model_pipeline, pkl_model_path)
-    print(f"✅ scikit-learn 模型已保存至: {pkl_model_path}")
+    print(f"[OK] scikit-learn 模型已保存至: {pkl_model_path}")
 
     # 8. 验证 ONNX 模型 (可选)
     print("\n8. 验证 ONNX 模型一致性...")

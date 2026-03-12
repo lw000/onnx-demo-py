@@ -4,7 +4,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 # 1. 加载
-df = pd.read_csv('samples/inverter_health_samples.csv')
+df = pd.read_csv('data/inverter_health_samples.csv')
 
 # 2. 探索
 print(df.describe()) 

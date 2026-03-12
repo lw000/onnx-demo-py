@@ -4,7 +4,7 @@
 
 ## 模型概述
 
-泵故障预测模型是一个多分类模型，用于预测主排水泵的运行状态。通过分析 4 个关键运行参数（流量、扬程、功率、振动），模型可以识别三种状态：正常运行、磨损故障和汽蚀故障。模型采用 sklearn 管道构建，包含特征标准化和随机森林分类器。
+泵故障预测模型是一个多分类模型，用于预测主排水泵的运行状态。通过分析 **6 个特征**（包含 4 个原始参数 + 2 个衍生特征），模型可以识别三种状态：正常运行、磨损故障和汽蚀故障。模型采用 sklearn 管道构建，包含特征标准化和随机森林分类器。
 
 ## 技术栈
 
@@ -39,10 +39,28 @@ pip install onnxruntime
 
 | 特征名称 | 单位 | 范围 | 说明 |
 |---------|------|------|------|
-| flow | m³/h | 80-120 | 流量，水泵输出流量 |
-| head | m | 40-60 | 扬程，水泵提升高度 |
-| power | kW | 40-60 | 功率，水泵消耗功率 |
-| vibration | mm/s | 0.5-4.5 | 振动，设备振动幅度 |
+| Flow | m³/h | 80-120 | 流量，水泵输出流量 |
+| Head | m | 40-60 | 扬程，水泵提升高度 |
+| Power | kW | 40-60 | 功率，水泵消耗功率 |
+| Vibration | mm/s | 0.5-4.5 | 振动，设备振动幅度 |
+| Efficiency_Index | - | 80-160 | 效率指数，水力功率与实际功率的比值 (衍生特征) |
+| Specific_Power | kW·h/m³ | 0.35-0.70 | 比功率，单位流量能耗 (衍生特征) |
+
+### 衍生特征说明
+
+**Efficiency_Index (效率指数)**
+- 计算公式: `Efficiency_Index = (Flow × Head) / (Power + 1e-6)`
+- 正常状态: 约 110-135（效率因子 1.0）
+- 磨损状态: 约 95-115（效率因子 0.85）
+- 汽蚀状态: 约 70-95（效率因子 0.65）
+- 作用: 直接反映水泵运行效率，是故障诊断的关键特征
+
+**Specific_Power (比功率)**
+- 计算公式: `Specific_Power = Power / (Flow + 1e-6)`
+- 正常状态: 约 0.38-0.48 kW·h/m³
+- 磨损状态: 约 0.45-0.60 kW·h/m³
+- 汽蚀状态: 约 0.50-0.70 kW·h/m³
+- 作用: 反映单位流量能耗，能更敏感地检测效率下降
 
 ## 预测类别
 
@@ -120,27 +138,49 @@ python pump_failure_prediction.py
 训练过程输出：
 ```
 --- 开始训练主排水泵故障预测模型 ---
-1. 生成模拟数据...
+特征列表: ['Flow', 'Head', 'Power', 'Vibration', 'Efficiency_Index', 'Specific_Power']
+
+发现已存在的数据文件: data\pump_failure_train_data.csv
+
+是否重新生成数据？(y/n, 默认 n): n
+从 CSV 文件加载并清洗数据...
+从 CSV 加载数据: data\pump_failure_train_data.csv
+原始数据形状: (9999, 7)
+清洗后数据形状: (9999, 7)
+最终数据集: 9999 条样本
+正常样本: 3333 条 (33.3%)
+磨损样本: 3333 条 (33.3%)
+汽蚀样本: 3333 条 (33.3%)
+
+生成数据可视化图表...
+[OK] 直方图已保存至: data\pump_failure_data_distribution.png
+[OK] 散点图已保存至: data\pump_failure_feature_scatter.png
+[OK] 箱线图已保存至: data\pump_failure_feature_boxplot.png
+[OK] 饼图已保存至: data\pump_failure_label_distribution.png
+
 2. 划分训练集和测试集...
 3. 训练模型...
 4. 评估模型...
               precision    recall  f1-score   support
 
-           0       0.96      0.97      0.96       667
-           1       0.97      0.98      0.98       667
-           2       0.97      0.95      0.96       667
+           0       1.00      1.00      1.00       666
+           1       1.00      1.00      1.00       667
+           2       1.00      1.00      1.00       667
 
-    accuracy                           0.97      2000
-   macro avg       0.97      0.97      0.97      2000
-weighted avg       0.97      0.97      0.97      2000
+    accuracy                           1.00      2000
+   macro avg       1.00      1.00      1.00      2000
+weighted avg       1.00      1.00      1.00      2000
 
 5. 转换模型为 ONNX 格式...
-✅ ONNX 模型已保存至: pump_failure_classifier.onnx
-✅ scikit-learn 模型已保存至: pump_failure_classifier_sklearn.pkl
+[OK] ONNX 模型已保存至: models\pump_failure_classifier.onnx
+[OK] scikit-learn 模型已保存至: models\pump_failure_classifier_sklearn.pkl
 
 8. 验证 ONNX 模型一致性...
-   - scikit-learn 预测类别: 0, 概率: [0.02 0.95 0.03]
-   - ONNX 模型预测类别: 0, 概率: [0.02, 0.95, 0.03]
+   - 输入节点: float_input
+   - 输出节点: ['label', 'probabilities']
+   - scikit-learn 预测类别: 0, 概率: [1. 0. 0.]
+   - ONNX 模型预测类别: 0, 概率: [0.9999996 0.        0.       ]
+   - ONNX 标签类型: <class 'numpy.int64'>
    - 预测类别一致: True
 
 --- Python 端任务完成 ---
@@ -158,12 +198,14 @@ pipeline = joblib.load('pump_failure_classifier_sklearn.pkl')
 # 标签映射
 label_map = {0: "normal", 1: "wear", 2: "cavitation"}
 
-# 准备输入数据 (4 个特征)
+# 准备输入数据 (6 个特征)
 input_data = np.array([[
-    110.0,   # flow (m³/h)
-    55.0,    # head (m)
-    50.0,    # power (kW)
-    1.2      # vibration (mm/s)
+    110.0,    # Flow (m³/h)
+    55.0,     # Head (m)
+    50.0,     # Power (kW)
+    1.2,      # Vibration (mm/s)
+    121.0,    # Efficiency_Index
+    0.45      # Specific_Power (kW·h/m³)
 ]]).astype(np.float32)
 
 # 预测
@@ -180,9 +222,9 @@ for cls, prob in zip(pipeline.classes_, probability):
 ```
 预测状态: 0 (normal)
 概率分布:
-  0 (normal): 95.12%
-  1 (wear): 2.53%
-  2 (cavitation): 2.35%
+  0 (normal): 99.99%
+  1 (wear): 0.01%
+  2 (cavitation): 0.00%
 ```
 
 ### 3. 使用 ONNX 模型预测
@@ -196,14 +238,15 @@ session = ort.InferenceSession('pump_failure_classifier.onnx')
 
 # 类别映射（标签顺序按数值排列）
 label_map = {0: "normal", 1: "wear", 2: "cavitation"}
-label_names = ["normal", "wear", "cavitation"]  # 对应索引 0, 1, 2
 
-# 准备输入数据
+# 准备输入数据 (6 个特征)
 input_data = np.array([[
-    110.0,   # flow (m³/h)
-    55.0,    # head (m)
-    50.0,    # power (kW)
-    1.2      # vibration (mm/s)
+    110.0,    # Flow (m³/h)
+    55.0,     # Head (m)
+    50.0,     # Power (kW)
+    1.2,      # Vibration (mm/s)
+    121.0,    # Efficiency_Index
+    0.45      # Specific_Power (kW·h/m³)
 ]]).astype(np.float32)
 
 # 预测
@@ -522,8 +565,15 @@ plt.show()
 Ort::Env env{ORT_LOGGING_LEVEL_WARNING, "test"};
 Ort::Session session{env, L"pump_failure_classifier.onnx", Ort::SessionOptions{nullptr}};
 
-// 准备输入
-float input_tensor_values[] = {110.0f, 55.0f, 50.0f, 1.2f};
+// 准备输入 (6 个特征)
+float input_tensor_values[] = {
+    110.0f,    // Flow (m³/h)
+    55.0f,     // Head (m)
+    50.0f,     // Power (kW)
+    1.2f,      // Vibration (mm/s)
+    121.0f,    // Efficiency_Index
+    0.45f      // Specific_Power (kW·h/m³)
+};
 
 // 运行推理
 // ... 推理代码
@@ -539,15 +589,22 @@ import * as ort from 'onnxruntime-web';
 // 加载模型
 const session = await ort.InferenceSession.create('pump_failure_classifier.onnx');
 
-// 准备输入
-const input = new ort.Tensor('float32', [110.0, 55.0, 50.0, 1.2], [1, 4]);
+// 准备输入 (6 个特征)
+const input = new ort.Tensor('float32', [
+    110.0,    // Flow (m³/h)
+    55.0,     // Head (m)
+    50.0,     // Power (kW)
+    1.2,      // Vibration (mm/s)
+    121.0,    // Efficiency_Index
+    0.45      // Specific_Power (kW·h/m³)
+], [1, 6]);
 
 // 运行推理
 const outputs = await session.run({ float_input: input });
 const labelIdx = outputs['label'].data[0];
 const probabilities = outputs['probabilities'];
 
-const labelNames = ['cavitation', 'normal', 'wear'];
+const labelNames = ['normal', 'wear', 'cavitation'];
 console.log(`预测状态: ${labelNames[labelIdx]}`);
 ```
 

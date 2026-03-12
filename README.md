@@ -7,8 +7,8 @@
 本项目提供了七个独立的工业设备预测模型，用于不同场景的设备监测和故障诊断：
 
 1. **温度预测模型** (`advanced_temp_model.py`) - 使用 Gradient Boosting 回归预测设备温度
-2. **泵故障预测模型** (`pump_failure_prediction.py`) - 使用随机森林分类预测泵设备故障状态
-3. **压缩机泄漏预测模型** (`compressor_leakage_prediction.py`) - 使用随机森林分类检测空压系统管网泄漏
+2. **泵故障预测模型** (`pump_failure_prediction.py`) - 使用随机森林分类预测泵设备故障状态（包含衍生特征）
+3. **压缩机泄漏预测模型** (`compressor_leakage_prediction.py`) - 使用随机森林分类检测空压系统管网泄漏（包含衍生特征）
 4. **采煤机故障预测模型** (`shearer_cutting_unit_failure_prediction.py`) - 使用随机森林分类预测采煤机截割部故障
 5. **皮带机打滑故障预测模型** (`belt_conveyor_slippage_fault_prediction.py`) - 使用随机森林分类预测皮带输送机打滑、卡阻等故障
 6. **皮带机打滑预测模型** (`belt_conveyor_slip_prediction.py`) - 使用随机森林分类预测皮带机打滑状态
@@ -48,13 +48,19 @@ onnx-demo/
 ├── data/                                        # 训练数据目录
 │   ├── inverter_raw_data.csv                    # 变频器原始训练数据 (405 KB)
 │   ├── inverter_health_samples.csv               # 变频器健康样本数据 (1.9 KB)
-│   ├── pump_failure_test_data.csv                # 泵故障测试数据 (1.2 KB)
+│   ├── pump_failure_train_data.csv              # 泵故障训练数据 (700 KB)
+│   ├── pump_failure_test_data.csv               # 泵故障测试数据 (1.2 KB)
+│   ├── compressor_leakage_train_data.csv        # 压缩机泄漏训练数据 (969 KB)
 │   ├── compressor_leakage_samples.csv            # 压缩机泄漏样本数据 (4.5 KB)
 │   ├── conveyor_slip_samples.csv                 # 皮带机打滑样本数据 (2.5 KB)
 │   ├── belt_conveyor_slippage_samples.csv        # 皮带机故障样本数据 (2.4 KB)
 │   ├── test_samples.csv                         # 综合测试数据 (4.4 KB)
 │   ├── data_visualization.png                   # 数据可视化图表 (274 KB)
-│   └── data_visualization.svg                   # 数据可视化图表 SVG (1.2 MB)
+│   ├── data_visualization.svg                   # 数据可视化图表 SVG (1.2 MB)
+│   ├── pump_failure_data_distribution.png       # 泵故障数据分布图表
+│   ├── pump_failure_feature_scatter.png         # 泵故障特征散点图
+│   ├── pump_failure_feature_boxplot.png         # 泵故障特征箱线图
+│   └── pump_failure_label_distribution.png      # 泵故障标签分布图
 │
 ├── models/                                     # 模型输出目录
 │   ├── advanced_temp_model.onnx                  # 温度预测 ONNX 模型 (350 KB)
@@ -164,15 +170,18 @@ python pump_failure_prediction.py
 
 **用途**: 检测空压系统管网泄漏
 
-**特征** (3 个):
-- pressure (MPa): 管网压力
-- supply_flow (m³/h): 供气流量
-- demand_flow (m³/h): 用气流量
+**特征** (5 个，含 2 个衍生特征):
+- Pressure (MPa): 管网压力
+- SupplyFlow (m³/h): 供气流量
+- DemandFlow (m³/h): 用气流量
+- FlowDiff (m³/h): 流量差值 (衍生特征，供气流量 - 用气流量)
+- FlowRatio (-): 流量比值 (衍生特征，供气流量 / 用气流量)
 
 **模型**: Random Forest Classifier
 - 100 棵决策树
 - 二分类（正常/泄漏）
-- 准确率: ~95%+
+- 准确率: ~96%
+- 自动处理类别不平衡
 
 **运行**:
 ```bash

@@ -118,25 +118,54 @@ python compressor_leakage_prediction.py
 
 训练过程输出：
 ```
---- 开始训练空压系统管网泄漏预测模型 ---
-1. 生成模拟数据...
+--- 开始训练优化的空压系统泄漏预测模型 ---
+特征列表: ['Pressure', 'SupplyFlow', 'DemandFlow', 'FlowDiff', 'FlowRatio']
+
+发现已存在的数据文件: data\compressor_leakage_train_data.csv
+
+是否重新生成数据？(y/n, 默认 n): n
+从 CSV 文件加载并清洗数据...
+从 CSV 加载数据: data\compressor_leakage_train_data.csv
+原始数据形状: (10000, 6)
+清洗后数据形状: (10000, 6)
+最终数据集: 10000 条样本
+正常样本: 7000 条 (70.0%)
+泄漏样本: 3000 条 (30.0%)
+
 2. 划分训练集和测试集...
-3. 训练模型 (Random Forest Classifier)...
+3. 训练模型...
 4. 评估模型...
               precision    recall  f1-score   support
 
-      正常       0.97      0.98      0.97      1400
-      泄漏       0.95      0.92      0.93       600
+        正常       0.97      0.98      0.97      1400
+        泄漏       0.95      0.92      0.93       600
 
 accuracy                           0.96      2000
 macro avg       0.96      0.95      0.95      2000
 weighted avg       0.96      0.96      0.96      2000
 
-    # 5. 转换为 ONNX
-    print("5. 转换模型为 ONNX 格式...")
-    # RandomForestClassifier 的 ONNX 转换是支持的
-    # 关键修改：添加 options 参数，强制使用 tensor 输出，禁用 zipmap
-    options = {type(model_pipeline): {'zipmap': False}} # 使用 type(model) 作为 key 也有效
+混淆矩阵:
+[[1370   30]
+ [  48  552]]
+漏报数 (实际泄漏但预测为正常): 48
+误报数 (实际正常但预测为泄漏): 30
+
+5. 转换模型为 ONNX 格式...
+ONNX 输出节点 'label' 类型: TENSOR(int64)
+ONNX 输出节点 'probabilities' 类型: TENSOR(float)
+[OK] ONNX 模型已保存至: models\compressor_leakage_detector.onnx
+[OK] scikit-learn 模型已保存至: models\compressor_leakage_detector_sklearn.pkl
+
+8. 验证 ONNX 模型一致性...
+   - 测试样本输入: [0.685  468.     395.     73.     1.185]
+   - scikit-learn 预测 (0:正常, 1:泄漏): 1
+   - scikit-learn 概率: [0.19 0.81]
+   - ONNX 模型预测 (0:正常, 1:泄漏): 1
+   - ONNX 概率: [0.18999994 0.81      ]
+   - 预测结果一致: True
+
+--- Python 端任务完成 ---
+```
     initial_type = [('float_input', FloatTensorType([None, X.shape[1]]))]
     onnx_model = convert_sklearn(model_pipeline, initial_types=initial_type, target_opset=12, options=options) # 这是核心修改
 

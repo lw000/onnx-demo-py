@@ -26,11 +26,15 @@ os.makedirs(model_dir, exist_ok=True)
 os.makedirs(samples_dir, exist_ok=True)
 
 
-# 特征说明:
+# 重要特征说明:
     # Flow 流量
     # Head 扬程
     # Power 功率
     # Vibration 振动
+    
+# 衍生特征:
+    # Efficiency_Index 估算效率 (Q * H) / P
+    # Specific_Power 比功率 P / Q
 
 
 def generate_pump_data(n_samples=10000):
@@ -48,19 +52,22 @@ def generate_pump_data(n_samples=10000):
             "flow": (100, 120),
             "head": (50, 60),
             "power": (45, 55),
-            "vibration": (0.5, 1.5)
+            "vibration": (0.5, 1.5),
+            "eff_factor": 1.0  # 效率因子，正常状态为1.0
         },
         "wear": {
             "flow": (90, 110), # 磨损导致效率下降，流量略减
             "head": (45, 55),  # 扬程略有下降
             "power": (50, 60), # 可能需要更多功率维持运转
-            "vibration": (1.5, 3.0) # 磨损导致振动加剧
+            "vibration": (1.5, 3.0), # 磨损导致振动加剧
+            "eff_factor": 0.85 # 磨损状态效率降低，设为0.85
         },
         "cavitation": {
             "flow": (80, 100), # 汽蚀导致流量大幅下降
             "head": (40, 50),  # 扬程下降
             "power": (40, 50), # 功率可能下降（效率降低）
-            "vibration": (2.5, 4.5) # 汽蚀产生强烈振动和噪音
+            "vibration": (2.5, 4.5), # 汽蚀产生强烈振动和噪音
+            "eff_factor": 0.65 # 汽蚀状态效率降低，设为0.65
         }
     }
 
@@ -75,8 +82,26 @@ def generate_pump_data(n_samples=10000):
         power = np.random.normal(loc=np.mean(params["power"]), scale=(params["power"][1]-params["power"][0])/6, size=n_state_samples).clip(*params["power"])
         vibration = np.random.exponential(scale=np.mean(params["vibration"]), size=n_state_samples).clip(*params["vibration"])
 
+        # --- 核心改进：计算衍生特征 ---
+        
+        # 1. 理论水力功率 (Proportional to Q * H)
+        # 注意：实际工程中需乘以 rho*g，但分类任务中比例常数不影响，可省略
+        hydraulic_power = flow * head 
+        
+        # 2. 估算效率 (Efficiency Index) = (Q * H) / P
+        # 添加微小值防止除以零
+        efficiency = hydraulic_power / (power + 1e-6)
+        
+        # 为了模拟真实传感器的噪声，给效率特征加一点随机扰动
+        noise = np.random.normal(0, 0.05 * efficiency, size=n_state_samples)
+        efficiency_noisy = efficiency + noise
+
+        # 3. 比功率 (Specific Power) = P / Q (辅助特征，反映单位流量能耗)
+        specific_power = power / (flow + 1e-6)
+
         for i in range(n_state_samples):
-            data.append([flow[i], head[i], power[i], vibration[i]])
+            # 特征向量: [Flow, Head, Power, Vibration, Efficiency_Index, Specific_Power]
+            data.append([flow[i], head[i], power[i], vibration[i], efficiency_noisy[i], specific_power[i]])
             labels.append(label_map[state])  # 使用数字标签
 
     return np.array(data), np.array(labels)
@@ -319,7 +344,7 @@ def main():
     print("--- 开始训练主排水泵故障预测模型 ---")
 
     # 特征名称定义
-    feature_names = ["Flow", "Head", "Power", "Vibration"]
+    feature_names = ["Flow", "Head", "Power", "Vibration", "Efficiency_Index", "Specific_Power"]
     print(f"特征列表: {feature_names}")
 
     # CSV 文件路径

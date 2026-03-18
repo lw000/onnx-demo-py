@@ -110,7 +110,7 @@ def main():
     n_samples = 5000
     feature_names = ["temp_current", "vibration_x", "vibration_y", "vibration_z",
                      "current", "voltage", "pressure", "humidity"]
-    csv_path = os.path.join(samples_dir, "temp_prediction_train_data.csv")
+    csv_path = os.path.join(samples_dir, "advanced_temp_prediction_train_data.csv")
 
     print("--- 开始训练复杂温度预测模型 ---")
     print(f"特征列表: {feature_names}")

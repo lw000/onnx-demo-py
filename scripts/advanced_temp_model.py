@@ -8,6 +8,14 @@ import onnx
 from skl2onnx import convert_sklearn
 from skl2onnx.common.data_types import FloatTensorType
 import joblib
+import os
+
+# 目录配置
+base_dir = os.path.dirname(os.path.dirname(__file__))
+model_dir = os.path.join(base_dir, "models")
+samples_dir = os.path.join(base_dir, "data")
+os.makedirs(model_dir, exist_ok=True)
+os.makedirs(samples_dir, exist_ok=True)
 
 # 设置随机种子保证可复现性
 np.random.seed(42)
@@ -76,9 +84,9 @@ test_score = pipeline.score(X_test, y_test)
 cv_scores = cross_val_score(pipeline, X_train, y_train, cv=5)
 
 print(f"\n模型性能评估:")
-print(f"训练集 R²: {train_score:.4f}")
-print(f"测试集 R²: {test_score:.4f}")
-print(f"交叉验证 R²: {cv_scores.mean():.4f} (±{cv_scores.std():.4f})")
+print(f"训练集 R2: {train_score:.4f}")
+print(f"测试集 R2: {test_score:.4f}")
+print(f"交叉验证 R2: {cv_scores.mean():.4f} (±{cv_scores.std():.4f})")
 
 # 转换为 ONNX
 print("\n正在转换为 ONNX 格式...")
@@ -96,16 +104,16 @@ onnx.checker.check_model(onnx_model)
 print("ONNX 模型验证通过")
 
 # 保存模型
-onnx_path = "advanced_temp_model.onnx"
+onnx_path = os.path.join(model_dir, "advanced_temp_model.onnx")
 with open(onnx_path, "wb") as f:
     f.write(onnx_model.SerializeToString())
 
 # 同时保存 sklearn 模型用于对比
-joblib.dump(pipeline, "advanced_temp_model_sklearn.pkl")
+pkl_path = os.path.join(model_dir, "advanced_temp_model_sklearn.pkl")
+joblib.dump(pipeline, pkl_path)
 
-print(f"\n模型已保存:")
 print(f"  ONNX 模型: {onnx_path}")
-print(f"  Sklearn 模型: advanced_temp_model_sklearn.pkl")
+print(f"  Sklearn 模型: {pkl_path}")
 
 # 打印模型信息
 print(f"\n模型信息:")
@@ -141,7 +149,9 @@ try:
 
     # ONNX 预测
     onnx_result = session.run(None, {'float_input': test_input})
-    onnx_pred = float(onnx_result[0][0])
+    # ONNX 输出可能是 shape (1,) 或 (1, 1)
+    onnx_output = onnx_result[0].flatten()
+    onnx_pred = float(onnx_output[0])
 
     print(f"\n【对比结果】")
     print(f"测试输入: {test_input[0]}")
@@ -150,9 +160,9 @@ try:
     print(f"差异: {abs(sklearn_pred - onnx_pred):.6f}°C")
 
     if abs(sklearn_pred - onnx_pred) < 0.001:
-        print("✅ Sklearn 和 ONNX 预测结果一致")
+        print("[OK] Sklearn 和 ONNX 预测结果一致")
     else:
-        print("⚠️  预测结果存在轻微差异（可能由浮点精度导致）")
+        print("[WARNING] 预测结果存在轻微差异（可能由浮点精度导致）")
 
     # 批量推理测试
     print(f"\n【批量推理测试】")
@@ -163,6 +173,7 @@ try:
 
     # ONNX 批量预测
     onnx_batch_result = session.run(None, {'float_input': batch_input})
+    # 确保 ONNX 输出是一维数组
     onnx_batch = onnx_batch_result[0].flatten()
 
     print(f"批量预测样本数: {len(batch_input)}")
@@ -175,10 +186,10 @@ try:
         print(f"  样本 {i+1}: Sklearn={sklearn_batch[i]:.2f}°C, ONNX={onnx_batch[i]:.2f}°C, 差异={abs(sklearn_batch[i] - onnx_batch[i]):.6f}°C")
 
 except ImportError:
-    print("\n⚠️  未安装 onnxruntime，跳过 ONNX 推理测试")
+    print("\n[WARNING] 未安装 onnxruntime，跳过 ONNX 推理测试")
     print("安装命令: pip install onnxruntime")
 except Exception as e:
-    print(f"\n❌ ONNX 推理测试失败: {e}")
+    print(f"\n[ERROR] ONNX 推理测试失败: {e}")
 
 # 实时预测示例
 print("\n" + "="*50)
@@ -200,7 +211,9 @@ try:
     print("\n工况预测结果:")
     for scenario_name, input_data in scenarios.items():
         result = session.run(None, {'float_input': input_data})
-        predicted_temp = float(result[0][0])
+        # 确保 ONNX 输出是一维数组
+        result_flat = result[0].flatten()
+        predicted_temp = float(result_flat[0])
 
         print(f"\n{scenario_name}:")
         print(f"  输入: [温度={input_data[0][0]}°C, 振动_X={input_data[0][1]}, 振动_Y={input_data[0][2]}, "
@@ -210,11 +223,11 @@ try:
 
         # 温度预警
         if predicted_temp > 70:
-            print(f"  🚨 预警: 温度过高！")
+            print(f"  [ALERT] 预警: 温度过高！")
         elif predicted_temp > 50:
-            print(f"  ⚡ 提示: 温度偏高")
+            print(f"  [INFO] 提示: 温度偏高")
         else:
-            print(f"  ✓ 温度正常")
+            print(f"  [OK] 温度正常")
 
 except ImportError:
     pass

@@ -120,7 +120,7 @@ onnx_model = convert_sklearn(
 )
 
 # 保存
-model_filename = os.path.join(model_dir, "inverter_temp.onnx")
+model_filename = os.path.join(model_dir, "train_igbt_model.onnx")
 with open(model_filename, "wb") as f:
     f.write(onnx_model.SerializeToString())
 

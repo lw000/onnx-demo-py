@@ -10,6 +10,9 @@ from typing import Dict, List, Any
 BASE_URL = "http://127.0.0.1:9080"
 TIMEOUT = 10
 
+# 模型代码常量
+MODEL_CODE = 203000
+
 
 def check_server():
     """检查服务器是否可用"""
@@ -28,7 +31,7 @@ def test_single_prediction():
     
     # 测试数据 - 皮带机打滑预测参数
     test_data = {
-        "model_code": 203000,
+        "model_code": MODEL_CODE,
         "input_data": {
             "current": 120.0,         # 电流 (A)
             "speed_diff": 0.5,        # 速度差 (m/s)
@@ -78,7 +81,7 @@ def test_batch_prediction():
     
     # 批量测试数据
     batch_data = {
-        "model_code": 203000,
+        "model_code": MODEL_CODE,
         "input_data": [
             {
                 "current": 120.0,         # 电流 (A) - 样本1: 正常工况
@@ -150,7 +153,7 @@ def test_input_validation():
         {
             "name": "缺失参数",
             "data": {
-                "model_code": 203000,
+                "model_code": MODEL_CODE,
                 "input_data": {
                     "current": 120.0,     # 电流 (A)
                     "speed_diff": 0.5      # 速度差 (m/s)
@@ -160,7 +163,7 @@ def test_input_validation():
         {
             "name": "参数类型错误",
             "data": {
-                "model_code": 203000,
+                "model_code": MODEL_CODE,
                 "input_data": {
                     "current": "high",    # 电流 (A) - 类型错误
                     "speed_diff": 0.5,    # 速度差 (m/s)
@@ -172,7 +175,7 @@ def test_input_validation():
         {
             "name": "参数越界(负电流)",
             "data": {
-                "model_code": 203000,
+                "model_code": MODEL_CODE,
                 "input_data": {
                     "current": -10.0,    # 电流 (A) - 越界
                     "speed_diff": 0.5,    # 速度差 (m/s)
@@ -184,7 +187,7 @@ def test_input_validation():
         {
             "name": "参数越界(速度差过大)",
             "data": {
-                "model_code": 203000,
+                "model_code": MODEL_CODE,
                 "input_data": {
                     "current": 120.0,     # 电流 (A)
                     "speed_diff": 10.0,   # 速度差 (m/s) - 越界
@@ -273,7 +276,7 @@ def test_slip_scenarios():
     for scenario in scenarios:
         print(f"\n场景: {scenario['name']}")
         request_data = {
-            "model_code": 203000,
+            "model_code": MODEL_CODE,
             "input_data": scenario["data"]
         }
         
@@ -309,7 +312,7 @@ def test_performance():
     print("=" * 60)
     
     test_data = {
-        "model_code": 203000,
+        "model_code": MODEL_CODE,
         "input_data": {
             "current": 120.0,       # 电流 (A)
             "speed_diff": 0.5,      # 速度差 (m/s)
@@ -348,7 +351,7 @@ def test_performance():
     # 批量吞吐量测试
     print("\n批量吞吐量测试 (100次请求):")
     batch_data = {
-        "model_code": 203000,
+        "model_code": MODEL_CODE,
         "input_data": [test_data["input_data"]] * 10
     }
     

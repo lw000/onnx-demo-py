@@ -10,6 +10,9 @@ from typing import Dict, List, Any
 BASE_URL = "http://127.0.0.1:9080"
 TIMEOUT = 10
 
+# 模型代码常量
+MODEL_CODE = 301000
+
 
 def check_server():
     """检查服务器是否可用"""
@@ -28,7 +31,7 @@ def test_single_prediction():
     
     # 测试数据 - 变频器健康评估参数
     test_data = {
-        "model_code": 301000,
+        "model_code": MODEL_CODE,
         "input_data": {
             "mean_ripple": 2.5,      # 平均纹波 (V)
             "std_ripple": 0.8,        # 纹波标准差 (V)
@@ -77,7 +80,7 @@ def test_batch_prediction():
     
     # 批量测试数据
     batch_data = {
-        "model_code": 301000,
+        "model_code": MODEL_CODE,
         "input_data": [
             {
                 "mean_ripple": 2.5,      # 样本1: 正常工况
@@ -152,7 +155,7 @@ def test_input_validation():
         {
             "name": "缺失参数",
             "data": {
-                "model_code": 301000,
+                "model_code": MODEL_CODE,
                 "input_data": {
                     "mean_ripple": 2.5,
                     "std_ripple": 0.8
@@ -162,7 +165,7 @@ def test_input_validation():
         {
             "name": "参数类型错误",
             "data": {
-                "model_code": 301000,
+                "model_code": MODEL_CODE,
                 "input_data": {
                     "mean_ripple": "high",
                     "std_ripple": 0.8,
@@ -176,7 +179,7 @@ def test_input_validation():
         {
             "name": "参数越界(负载>1)",
             "data": {
-                "model_code": 301000,
+                "model_code": MODEL_CODE,
                 "input_data": {
                     "mean_ripple": 2.5,
                     "std_ripple": 0.8,
@@ -190,7 +193,7 @@ def test_input_validation():
         {
             "name": "参数越界(负温度)",
             "data": {
-                "model_code": 301000,
+                "model_code": MODEL_CODE,
                 "input_data": {
                     "mean_ripple": 2.5,
                     "std_ripple": 0.8,
@@ -280,7 +283,7 @@ def test_working_conditions():
     for scenario in scenarios:
         print(f"\n场景: {scenario['name']}")
         request_data = {
-            "model_code": 301000,
+            "model_code": MODEL_CODE,
             "input_data": scenario["data"]
         }
         
@@ -315,7 +318,7 @@ def test_performance():
     print("=" * 60)
     
     test_data = {
-        "model_code": 301000,
+        "model_code": MODEL_CODE,
         "input_data": {
             "mean_ripple": 2.5,
             "std_ripple": 0.8,
@@ -356,7 +359,7 @@ def test_performance():
     # 批量吞吐量测试
     print("\n批量吞吐量测试 (100次请求):")
     batch_data = {
-        "model_code": 301000,
+        "model_code": MODEL_CODE,
         "input_data": [test_data["input_data"]] * 10
     }
     
@@ -389,7 +392,7 @@ def main():
     """主函数"""
     print("=" * 60)
     print("变频器健康度评估模型 API 测试")
-    print("模型代码: 301000")
+    print("模型代码: MODEL_CODE")
     print("=" * 60)
     
     # 检查服务器

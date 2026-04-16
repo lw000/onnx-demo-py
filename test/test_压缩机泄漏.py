@@ -10,6 +10,9 @@ from typing import Dict, List, Any
 BASE_URL = "http://127.0.0.1:9080"
 TIMEOUT = 10
 
+# 模型代码常量
+MODEL_CODE = 202000
+
 
 def check_server():
     """检查服务器是否可用"""
@@ -28,7 +31,7 @@ def test_single_prediction():
     
     # 测试数据 - 压缩机泄漏预测参数
     test_data = {
-        "model_code": 202000,
+        "model_code": MODEL_CODE,
         "input_data": {
             "pressure": 0.75,           # 压力 (MPa)
             "supply_flow": 320.0,       # 供给流量 (L/min)
@@ -77,7 +80,7 @@ def test_batch_prediction():
     
     # 批量测试数据
     batch_data = {
-        "model_code": 202000,
+        "model_code": MODEL_CODE,
         "input_data": [
             {
                 "pressure": 0.75,           # 压力 (MPa) - 样本1: 正常工况
@@ -146,7 +149,7 @@ def test_input_validation():
         {
             "name": "缺失参数",
             "data": {
-                "model_code": 202000,
+                "model_code": MODEL_CODE,
                 "input_data": {
                     "pressure": 0.75,           # 压力 (MPa)
                     "supply_flow": 320.0         # 供给流量 (L/min)
@@ -156,7 +159,7 @@ def test_input_validation():
         {
             "name": "参数类型错误",
             "data": {
-                "model_code": 202000,
+                "model_code": MODEL_CODE,
                 "input_data": {
                     "pressure": "high",         # 压力 (MPa) - 类型错误
                     "supply_flow": 320.0,       # 供给流量 (L/min)
@@ -167,7 +170,7 @@ def test_input_validation():
         {
             "name": "参数越界(压力<0)",
             "data": {
-                "model_code": 202000,
+                "model_code": MODEL_CODE,
                 "input_data": {
                     "pressure": -0.1,           # 压力 (MPa) - 越界
                     "supply_flow": 320.0,       # 供给流量 (L/min)
@@ -178,7 +181,7 @@ def test_input_validation():
         {
             "name": "参数越界(压力>1)",
             "data": {
-                "model_code": 202000,
+                "model_code": MODEL_CODE,
                 "input_data": {
                     "pressure": 1.5,            # 压力 (MPa) - 越界
                     "supply_flow": 320.0,       # 供给流量 (L/min)
@@ -261,7 +264,7 @@ def test_leak_scenarios():
     for scenario in scenarios:
         print(f"\n场景: {scenario['name']}")
         request_data = {
-            "model_code": 202000,
+            "model_code": MODEL_CODE,
             "input_data": scenario["data"]
         }
         
@@ -297,7 +300,7 @@ def test_performance():
     print("=" * 60)
     
     test_data = {
-        "model_code": 202000,
+        "model_code": MODEL_CODE,
         "input_data": {
             "pressure": 0.75,           # 压力 (MPa)
             "supply_flow": 320.0,       # 供给流量 (L/min)
@@ -335,7 +338,7 @@ def test_performance():
     # 批量吞吐量测试
     print("\n批量吞吐量测试 (100次请求):")
     batch_data = {
-        "model_code": 202000,
+        "model_code": MODEL_CODE,
         "input_data": [test_data["input_data"]] * 10
     }
     

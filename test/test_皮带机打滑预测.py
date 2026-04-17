@@ -79,27 +79,72 @@ def test_batch_prediction():
     print("测试2: 批量预测")
     print("=" * 60)
     
-    # 批量测试数据
+    # 批量测试数据 - 覆盖正常、打滑、边缘等多种工况
     batch_data = {
         "model_code": MODEL_CODE,
         "input_data": [
+            # 正常工况样本
             {
-                "current": 120.0,         # 电流 (A) - 样本1: 正常工况
-                "speed_diff": 0.5,         # 速度差 (m/s)
-                "vibration": 3.2,          # 振动值 (mm/s)
-                "temperature": 45.0        # 温度 (°C)
+                "current": 100.0,         # 电流 (A) - 样本1: 理想工况
+                "speed_diff": 0.2,         # 速度差 (m/s)
+                "vibration": 2.0,         # 振动值 (mm/s)
+                "temperature": 35.0       # 温度 (°C)
             },
             {
-                "current": 180.0,         # 电流 (A) - 样本2: 打滑工况
-                "speed_diff": 2.8,         # 速度差 (m/s)
-                "vibration": 7.5,          # 振动值 (mm/s)
-                "temperature": 68.0        # 温度 (°C)
+                "current": 115.0,         # 电流 (A) - 样本2: 正常偏低
+                "speed_diff": 0.4,         # 速度差 (m/s)
+                "vibration": 2.8,          # 振动值 (mm/s)
+                "temperature": 40.0       # 温度 (°C)
             },
             {
-                "current": 150.0,         # 电流 (A) - 样本3: 边缘工况
+                "current": 125.0,         # 电流 (A) - 样本3: 正常偏高
+                "speed_diff": 0.6,         # 速度差 (m/s)
+                "vibration": 3.5,          # 振动值 (mm/s)
+                "temperature": 48.0       # 温度 (°C)
+            },
+            # 边缘工况样本
+            {
+                "current": 150.0,         # 电流 (A) - 样本4: 边缘-电流偏高
+                "speed_diff": 1.2,         # 速度差 (m/s)
+                "vibration": 4.2,         # 振动值 (mm/s)
+                "temperature": 55.0       # 温度 (°C)
+            },
+            {
+                "current": 140.0,         # 电流 (A) - 样本5: 边缘-速度差
+                "speed_diff": 1.8,         # 速度差 (m/s)
+                "vibration": 4.8,         # 振动值 (mm/s)
+                "temperature": 52.0       # 温度 (°C)
+            },
+            {
+                "current": 155.0,         # 电流 (A) - 样本6: 边缘-温度高
                 "speed_diff": 1.5,         # 速度差 (m/s)
-                "vibration": 4.5,          # 振动值 (mm/s)
-                "temperature": 55.0        # 温度 (°C)
+                "vibration": 5.0,         # 振动值 (mm/s)
+                "temperature": 60.0       # 温度 (°C)
+            },
+            # 打滑工况样本
+            {
+                "current": 170.0,         # 电流 (A) - 样本7: 轻度打滑
+                "speed_diff": 2.2,         # 速度差 (m/s)
+                "vibration": 6.0,         # 振动值 (mm/s)
+                "temperature": 65.0       # 温度 (°C)
+            },
+            {
+                "current": 185.0,         # 电流 (A) - 样本8: 中度打滑
+                "speed_diff": 2.8,         # 速度差 (m/s)
+                "vibration": 7.2,          # 振动值 (mm/s)
+                "temperature": 70.0       # 温度 (°C)
+            },
+            {
+                "current": 200.0,         # 电流 (A) - 样本9: 明显打滑
+                "speed_diff": 3.5,         # 速度差 (m/s)
+                "vibration": 8.5,          # 振动值 (mm/s)
+                "temperature": 78.0       # 温度 (°C)
+            },
+            {
+                "current": 220.0,         # 电流 (A) - 样本10: 严重打滑
+                "speed_diff": 5.0,         # 速度差 (m/s)
+                "vibration": 10.5,        # 振动值 (mm/s)
+                "temperature": 88.0       # 温度 (°C)
             }
         ]
     }

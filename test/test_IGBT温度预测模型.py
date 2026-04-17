@@ -133,7 +133,7 @@ def test_single_prediction() -> Optional[Dict[str, Any]]:
 
 def test_batch_prediction() -> Optional[Dict[str, Any]]:
     """
-    测试 2: 批量预测 (如果 API 支持)
+    测试 2: 批量预测
 
     Returns:
         API 响应或 None
@@ -177,78 +177,116 @@ def test_batch_prediction() -> Optional[Dict[str, Any]]:
         {
             "current": 90.0,       # 电流 (A) - 样本5: 极限负荷
             "frequency": 58.0,     # 频率 (Hz)
-            "ambient_temp": 38.0,  # 环境温度 (°C)
+            "ambient_temp": 38.0, # 环境温度 (°C)
             "temp_rate": 1.8,      # 温升速率 (°C/min)
             "load_factor": 1.0     # 负载因子 (0-1)
         },
         # 低负荷运行样本
         {
             "current": 20.0,       # 电流 (A) - 样本6: 轻负荷
-            "frequency": 15.0,     # 频率 (Hz)
+            "frequency": 15.0,    # 频率 (Hz)
             "ambient_temp": 18.0,  # 环境温度 (°C)
             "temp_rate": 0.15,     # 温升速率 (°C/min)
-            "load_factor": 0.2     # 负载因子 (0-1)
+            "load_factor": 0.2    # 负载因子 (0-1)
         },
         {
             "current": 15.0,       # 电流 (A) - 样本7: 最低负荷
             "frequency": 12.0,     # 频率 (Hz)
             "ambient_temp": 16.0,  # 环境温度 (°C)
             "temp_rate": 0.1,      # 温升速率 (°C/min)
-            "load_factor": 0.15    # 负载因子 (0-1)
+            "load_factor": 0.15   # 负载因子 (0-1)
         },
         # 高温环境样本
         {
             "current": 70.0,       # 电流 (A) - 样本8: 高温环境
-            "frequency": 45.0,     # 频率 (Hz)
-            "ambient_temp": 38.0,  # 环境温度 (°C)
-            "temp_rate": 1.2,      # 温升速率 (°C/min)
-            "load_factor": 0.85    # 负载因子 (0-1)
+            "frequency": 45.0,    # 频率 (Hz)
+            "ambient_temp": 38.0, # 环境温度 (°C)
+            "temp_rate": 1.2,     # 温升速率 (°C/min)
+            "load_factor": 0.85   # 负载因子 (0-1)
         },
         {
             "current": 75.0,       # 电流 (A) - 样本9: 极端高温
-            "frequency": 50.0,     # 频率 (Hz)
-            "ambient_temp": 40.0,  # 环境温度 (°C)
-            "temp_rate": 1.6,      # 温升速率 (°C/min)
-            "load_factor": 0.9     # 负载因子 (0-1)
+            "frequency": 50.0,    # 频率 (Hz)
+            "ambient_temp": 40.0, # 环境温度 (°C)
+            "temp_rate": 1.6,     # 温升速率 (°C/min)
+            "load_factor": 0.9    # 负载因子 (0-1)
         },
         # 低温环境样本
         {
             "current": 30.0,       # 电流 (A) - 样本10: 低温环境
-            "frequency": 20.0,     # 频率 (Hz)
-            "ambient_temp": 16.0,  # 环境温度 (°C)
-            "temp_rate": 0.2,      # 温升速率 (°C/min)
-            "load_factor": 0.4     # 负载因子 (0-1)
+            "frequency": 20.0,    # 频率 (Hz)
+            "ambient_temp": 16.0, # 环境温度 (°C)
+            "temp_rate": 0.2,     # 温升速率 (°C/min)
+            "load_factor": 0.4    # 负载因子 (0-1)
         }
     ]
 
-    # 测试逐个请求并汇总时间
-    print(f"\nPOST {API_ENDPOINT} (批量测试: {len(test_data_list)} 条)")
-    print(f"逐个请求测试批量性能...")
+    # 构建批量请求体
+    batch_request = {
+        "model_code": MODEL_CODE,
+        "input_data": test_data_list
+    }
+
+    batch_endpoint = f"{API_BASE_URL}/predict/batch"
+    print(f"\nPOST {batch_endpoint}")
+    print(f"批量大小: {len(test_data_list)} 条")
+    print(f"请求体:")
+    print(json.dumps(batch_request, indent=2, ensure_ascii=False))
 
     try:
         start_time = time.time()
-        results = []
-        for data in test_data_list:
-            response = requests.post(API_ENDPOINT, json=build_request_body(data))
-            if response.status_code == 200:
-                result = response.json()
-                if result.get("code") == 0:
-                    predicted_temp = result.get("data", {}).get("result", {}).get("predicted_temp", "N/A")
-                    results.append(predicted_temp)
-
+        response = requests.post(
+            batch_endpoint,
+            json=batch_request,
+            headers={"Content-Type": "application/json"}
+        )
         elapsed_ms = (time.time() - start_time) * 1000
-        throughput = len(test_data_list) / (elapsed_ms / 1000)
 
-        print(f"\n响应时间: {elapsed_ms:.2f}ms")
-        print(f"吞吐量: {throughput:.2f} req/s")
-        print(f"\n预测结果:")
-        for i, temp in enumerate(results):
-            print(f"  样本 {i+1}: {temp}°C")
+        print(f"\n响应状态: {response.status_code}")
+        print(f"响应时间: {elapsed_ms:.2f}ms")
 
-        return {"predictions": results, "elapsed_ms": elapsed_ms, "throughput": throughput}
+        if response.status_code == 200:
+            result = response.json()
+            print(f"\n响应体:")
+            print(json.dumps(result, indent=2, ensure_ascii=False))
+
+            # 检查业务状态
+            if result.get("code") == 0:
+                data = result.get("data", {})
+                predictions = data.get("result", {}).get("predictions", [])
+                
+                print(f"\n[OK] 批量预测成功!")
+                print(f"预测结果 ({len(predictions)} 条):")
+                for pred in predictions:
+                    idx = pred.get("index", "?")
+                    predicted_temp = pred.get("predicted_temp", "N/A")
+                    # 温度预警
+                    if predicted_temp != "N/A":
+                        if predicted_temp > 75:
+                            alert = "[ALERT] 预警"
+                        elif predicted_temp > 60:
+                            alert = "[WARNING] 偏高"
+                        else:
+                            alert = "[OK] 正常"
+                    else:
+                        alert = ""
+                    print(f"  样本 {idx}: {predicted_temp}°C {alert}")
+
+                # 计算吞吐量
+                throughput = len(test_data_list) / (elapsed_ms / 1000) if elapsed_ms > 0 else 0
+                print(f"\n性能指标:")
+                print(f"  吞吐量: {throughput:.2f} req/s")
+            else:
+                print(f"\n[ERROR] 业务错误: {result.get('msg', '未知错误')}")
+
+            return result
+        else:
+            print(f"[ERROR] 请求失败: {response.text}")
+            return None
 
     except requests.exceptions.ConnectionError:
-        print(f"[ERROR] 连接失败: 无法连接到 {API_ENDPOINT}")
+        print(f"[ERROR] 连接失败: 无法连接到 {batch_endpoint}")
+        print("请确保 API 服务正在运行并支持批量预测接口")
         return None
     except Exception as e:
         print(f"[ERROR] 请求异常: {e}")

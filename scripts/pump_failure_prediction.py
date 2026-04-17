@@ -1,3 +1,22 @@
+# ============================================================
+# 模型: 泵故障预测
+# 功能: 预测泵的正常、磨损、汽蚀三种运行状态
+# ============================================================
+
+# ============================================================
+# 基本特征名称定义
+# Flow: 流量 (m³/h)
+# Head: 扬程 (m)
+# Power: 功率 (kW)
+# Vibration: 振动值 (mm/s)
+# ============================================================
+
+# ============================================================
+# 衍生特征名称定义
+# Efficiency_Index: 估算效率指数 = (流量 × 扬程) / 功率
+# Specific_Power: 比功率 = 功率 / 流量
+# ============================================================
+
 import numpy as np
 import pandas as pd
 from sklearn.ensemble import RandomForestClassifier
@@ -24,17 +43,6 @@ model_dir = os.path.join(base_dir, "models")
 samples_dir = os.path.join(base_dir, "data")
 os.makedirs(model_dir, exist_ok=True)
 os.makedirs(samples_dir, exist_ok=True)
-
-
-# 重要特征说明:
-    # Flow 流量
-    # Head 扬程
-    # Power 功率
-    # Vibration 振动
-    
-# 衍生特征:
-    # Efficiency_Index 估算效率 (Q * H) / P
-    # Specific_Power 比功率 P / Q
 
 
 def generate_pump_data(n_samples=10000):

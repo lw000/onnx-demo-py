@@ -1,4 +1,21 @@
-# compressor_leakage_prediction.py
+# ============================================================
+# 模型: 压缩机泄漏预测
+# 功能: 基于流量和压力数据检测压缩机泄漏故障
+# ============================================================
+
+# ============================================================
+# 基本特征名称定义
+# Pressure: 压力 (MPa)
+# SupplyFlow: 供给流量 (L/min)
+# DemandFlow: 需求流量 (L/min)
+# ============================================================
+
+# ============================================================
+# 衍生特征名称定义
+# FlowDiff: 流量差 = 供给流量 - 需求流量 (L/min)
+# FlowRatio: 流量比率 = 供给流量 / 需求流量
+# ============================================================
+
 import numpy as np
 import pandas as pd
 from sklearn.ensemble import RandomForestClassifier
@@ -126,7 +143,6 @@ def load_and_clean_data(filepath, feature_names):
 def main():
     print("--- 开始训练优化的空压系统泄漏预测模型 ---")
 
-    # 特征名称定义
     feature_names = ["Pressure", "SupplyFlow", "DemandFlow", "FlowDiff", "FlowRatio"]
     print(f"特征列表: {feature_names}")
 

@@ -1,3 +1,22 @@
+# ============================================================
+# 模型: IGBT温度预测
+# 功能: 预测变频器IGBT模块的未来温度，实现预测性维护和过热预警
+# ============================================================
+
+# ============================================================
+# 基本特征名称定义
+# current: 输出电流 (A)
+# frequency: 输出频率 (Hz)
+# ambient_temp: 环境温度 (°C)
+# temp_rate: 温升速率 (°C/s)
+# load_factor: 负载率 (0-1)
+# ============================================================
+
+# ============================================================
+# 衍生特征名称定义
+# (本模型通过StandardScaler标准化后直接使用，无显式衍生特征)
+# ============================================================
+
 import pandas as pd
 import numpy as np
 from sklearn.ensemble import RandomForestRegressor
@@ -9,8 +28,6 @@ import onnx
 from skl2onnx import convert_sklearn
 from skl2onnx.common.data_types import FloatTensorType
 import os
-
-# 模型说明：预测变频器 IGBT (绝缘栅双极型晶体管) 模块的未来温度，帮助实现预测性维护和过热预警
 
 # 目录配置
 base_dir = os.path.dirname(os.path.dirname(__file__))

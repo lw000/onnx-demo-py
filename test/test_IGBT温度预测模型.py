@@ -142,31 +142,81 @@ def test_batch_prediction() -> Optional[Dict[str, Any]]:
     print("测试 2: 批量预测")
     print("="*60)
 
-    # 根据 API 实际响应，批量预测可能需要使用不同的请求格式
-    # 测试单个请求，但发送多个数据点
+    # 批量测试数据 - 覆盖正常、高负荷、低负荷、高温、低温等多种工况
     test_data_list = [
-        # 样本 1
+        # 正常工况样本
         {
-            "current": 50.0,       # 电流 (A)
+            "current": 50.0,       # 电流 (A) - 样本1: 中等负荷正常
             "frequency": 30.0,     # 频率 (Hz)
-            "ambient_temp": 25.0,   # 环境温度 (°C)
-            "temp_rate": 0.5,       # 温升速率 (°C/min)
+            "ambient_temp": 25.0,  # 环境温度 (°C)
+            "temp_rate": 0.5,      # 温升速率 (°C/min)
             "load_factor": 0.6     # 负载因子 (0-1)
         },
-        # 样本 2
         {
-            "current": 70.0,       # 电流 (A)
-            "frequency": 50.0,     # 频率 (Hz)
-            "ambient_temp": 30.0,   # 环境温度 (°C)
-            "temp_rate": 1.0,       # 温升速率 (°C/min)
-            "load_factor": 0.8     # 负载因子 (0-1)
+            "current": 45.0,       # 电流 (A) - 样本2: 低负荷正常
+            "frequency": 25.0,     # 频率 (Hz)
+            "ambient_temp": 22.0,  # 环境温度 (°C)
+            "temp_rate": 0.3,      # 温升速率 (°C/min)
+            "load_factor": 0.5     # 负载因子 (0-1)
         },
-        # 样本 3
         {
-            "current": 30.0,       # 电流 (A)
+            "current": 65.0,       # 电流 (A) - 样本3: 偏高负荷
+            "frequency": 40.0,     # 频率 (Hz)
+            "ambient_temp": 28.0,  # 环境温度 (°C)
+            "temp_rate": 0.8,      # 温升速率 (°C/min)
+            "load_factor": 0.75    # 负载因子 (0-1)
+        },
+        # 高负荷运行样本
+        {
+            "current": 85.0,       # 电流 (A) - 样本4: 重负荷
+            "frequency": 55.0,     # 频率 (Hz)
+            "ambient_temp": 35.0,  # 环境温度 (°C)
+            "temp_rate": 1.5,      # 温升速率 (°C/min)
+            "load_factor": 0.95    # 负载因子 (0-1)
+        },
+        {
+            "current": 90.0,       # 电流 (A) - 样本5: 极限负荷
+            "frequency": 58.0,     # 频率 (Hz)
+            "ambient_temp": 38.0,  # 环境温度 (°C)
+            "temp_rate": 1.8,      # 温升速率 (°C/min)
+            "load_factor": 1.0     # 负载因子 (0-1)
+        },
+        # 低负荷运行样本
+        {
+            "current": 20.0,       # 电流 (A) - 样本6: 轻负荷
+            "frequency": 15.0,     # 频率 (Hz)
+            "ambient_temp": 18.0,  # 环境温度 (°C)
+            "temp_rate": 0.15,     # 温升速率 (°C/min)
+            "load_factor": 0.2     # 负载因子 (0-1)
+        },
+        {
+            "current": 15.0,       # 电流 (A) - 样本7: 最低负荷
+            "frequency": 12.0,     # 频率 (Hz)
+            "ambient_temp": 16.0,  # 环境温度 (°C)
+            "temp_rate": 0.1,      # 温升速率 (°C/min)
+            "load_factor": 0.15    # 负载因子 (0-1)
+        },
+        # 高温环境样本
+        {
+            "current": 70.0,       # 电流 (A) - 样本8: 高温环境
+            "frequency": 45.0,     # 频率 (Hz)
+            "ambient_temp": 38.0,  # 环境温度 (°C)
+            "temp_rate": 1.2,      # 温升速率 (°C/min)
+            "load_factor": 0.85    # 负载因子 (0-1)
+        },
+        {
+            "current": 75.0,       # 电流 (A) - 样本9: 极端高温
+            "frequency": 50.0,     # 频率 (Hz)
+            "ambient_temp": 40.0,  # 环境温度 (°C)
+            "temp_rate": 1.6,      # 温升速率 (°C/min)
+            "load_factor": 0.9     # 负载因子 (0-1)
+        },
+        # 低温环境样本
+        {
+            "current": 30.0,       # 电流 (A) - 样本10: 低温环境
             "frequency": 20.0,     # 频率 (Hz)
-            "ambient_temp": 20.0,   # 环境温度 (°C)
-            "temp_rate": 0.2,       # 温升速率 (°C/min)
+            "ambient_temp": 16.0,  # 环境温度 (°C)
+            "temp_rate": 0.2,      # 温升速率 (°C/min)
             "load_factor": 0.4     # 负载因子 (0-1)
         }
     ]

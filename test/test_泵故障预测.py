@@ -79,27 +79,72 @@ def test_batch_prediction():
     print("测试2: 批量预测")
     print("=" * 60)
     
-    # 批量测试数据
+    # 批量测试数据 - 覆盖正常、磨损、气蚀等多种工况
     batch_data = {
         "model_code": MODEL_CODE,
         "input_data": [
+            # 正常工况样本
             {
-                "flow": 100.0,           # 流量 (m³/h) - 样本1: 正常工况
-                "head": 50.0,            # 扬程 (m)
-                "power": 45.0,           # 功率 (kW)
-                "vibration": 2.5         # 振动值 (mm/s)
+                "flow": 110.0,       # 流量 (m³/h) - 样本1: 正常高流量
+                "head": 55.0,        # 扬程 (m)
+                "power": 48.0,       # 功率 (kW)
+                "vibration": 1.2     # 振动值 (mm/s)
             },
             {
-                "flow": 85.0,            # 流量 (m³/h) - 样本2: 磨损工况
-                "head": 42.0,            # 扬程 (m)
-                "power": 38.0,           # 功率 (kW)
-                "vibration": 3.8         # 振动值 (mm/s)
+                "flow": 100.0,       # 流量 (m³/h) - 样本2: 正常中流量
+                "head": 50.0,        # 扬程 (m)
+                "power": 45.0,       # 功率 (kW)
+                "vibration": 1.5     # 振动值 (mm/s)
             },
             {
-                "flow": 75.0,            # 流量 (m³/h) - 样本3: 气蚀工况
-                "head": 35.0,            # 扬程 (m)
-                "power": 32.0,           # 功率 (kW)
-                "vibration": 4.5         # 振动值 (mm/s)
+                "flow": 95.0,        # 流量 (m³/h) - 样本3: 正常低流量
+                "head": 48.0,        # 扬程 (m)
+                "power": 42.0,       # 功率 (kW)
+                "vibration": 1.8     # 振动值 (mm/s)
+            },
+            # 磨损工况样本
+            {
+                "flow": 92.0,        # 流量 (m³/h) - 样本4: 轻度磨损
+                "head": 47.0,        # 扬程 (m)
+                "power": 44.0,       # 功率 (kW)
+                "vibration": 2.8     # 振动值 (mm/s)
+            },
+            {
+                "flow": 85.0,        # 流量 (m³/h) - 样本5: 中度磨损
+                "head": 44.0,        # 扬程 (m)
+                "power": 42.0,       # 功率 (kW)
+                "vibration": 3.5     # 振动值 (mm/s)
+            },
+            {
+                "flow": 78.0,        # 流量 (m³/h) - 样本6: 严重磨损
+                "head": 40.0,        # 扬程 (m)
+                "power": 40.0,       # 功率 (kW)
+                "vibration": 4.2     # 振动值 (mm/s)
+            },
+            # 气蚀工况样本
+            {
+                "flow": 85.0,        # 流量 (m³/h) - 样本7: 气蚀初期
+                "head": 42.0,        # 扬程 (m)
+                "power": 38.0,       # 功率 (kW)
+                "vibration": 3.2     # 振动值 (mm/s)
+            },
+            {
+                "flow": 75.0,        # 流量 (m³/h) - 样本8: 明显气蚀
+                "head": 38.0,        # 扬程 (m)
+                "power": 35.0,       # 功率 (kW)
+                "vibration": 4.0     # 振动值 (mm/s)
+            },
+            {
+                "flow": 68.0,        # 流量 (m³/h) - 样本9: 严重气蚀
+                "head": 34.0,        # 扬程 (m)
+                "power": 32.0,       # 功率 (kW)
+                "vibration": 4.8     # 振动值 (mm/s)
+            },
+            {
+                "flow": 60.0,        # 流量 (m³/h) - 样本10: 极端气蚀
+                "head": 30.0,        # 扬程 (m)
+                "power": 28.0,       # 功率 (kW)
+                "vibration": 5.5     # 振动值 (mm/s)
             }
         ]
     }

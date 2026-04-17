@@ -78,24 +78,62 @@ def test_batch_prediction():
     print("测试2: 批量预测")
     print("=" * 60)
     
-    # 批量测试数据
+    # 批量测试数据 - 覆盖正常、泄漏、边缘等多种工况
     batch_data = {
         "model_code": MODEL_CODE,
         "input_data": [
+            # 正常工况样本
             {
-                "pressure": 0.75,           # 压力 (MPa) - 样本1: 正常工况
+                "pressure": 0.82,           # 压力 (MPa) - 样本1: 理想工况
+                "supply_flow": 360.0,       # 供给流量 (L/min)
+                "demand_flow": 358.0        # 需求流量 (L/min)
+            },
+            {
+                "pressure": 0.78,           # 压力 (MPa) - 样本2: 正常工况
+                "supply_flow": 340.0,       # 供给流量 (L/min)
+                "demand_flow": 335.0        # 需求流量 (L/min)
+            },
+            {
+                "pressure": 0.75,           # 压力 (MPa) - 样本3: 正常偏低
                 "supply_flow": 320.0,       # 供给流量 (L/min)
-                "demand_flow": 315.0        # 需求流量 (L/min)
+                "demand_flow": 318.0        # 需求流量 (L/min)
             },
+            # 边缘工况样本
             {
-                "pressure": 0.68,           # 压力 (MPa) - 样本2: 泄漏工况
-                "supply_flow": 280.0,       # 供给流量 (L/min)
-                "demand_flow": 350.0        # 需求流量 (L/min)
-            },
-            {
-                "pressure": 0.72,           # 压力 (MPa) - 样本3: 边缘工况
+                "pressure": 0.70,           # 压力 (MPa) - 样本4: 边缘工况-压力低
                 "supply_flow": 300.0,       # 供给流量 (L/min)
-                "demand_flow": 330.0        # 需求流量 (L/min)
+                "demand_flow": 310.0        # 需求流量 (L/min)
+            },
+            {
+                "pressure": 0.72,           # 压力 (MPa) - 样本5: 边缘工况-流量差
+                "supply_flow": 310.0,       # 供给流量 (L/min)
+                "demand_flow": 325.0        # 需求流量 (L/min)
+            },
+            {
+                "pressure": 0.68,           # 压力 (MPa) - 样本6: 边缘工况-流量倒灌
+                "supply_flow": 290.0,       # 供给流量 (L/min)
+                "demand_flow": 305.0        # 需求流量 (L/min)
+            },
+            # 泄漏工况样本
+            {
+                "pressure": 0.65,           # 压力 (MPa) - 样本7: 轻微泄漏
+                "supply_flow": 280.0,       # 供给流量 (L/min)
+                "demand_flow": 320.0        # 需求流量 (L/min)
+            },
+            {
+                "pressure": 0.60,           # 压力 (MPa) - 样本8: 中度泄漏
+                "supply_flow": 260.0,       # 供给流量 (L/min)
+                "demand_flow": 340.0        # 需求流量 (L/min)
+            },
+            {
+                "pressure": 0.55,           # 压力 (MPa) - 样本9: 明显泄漏
+                "supply_flow": 240.0,       # 供给流量 (L/min)
+                "demand_flow": 360.0        # 需求流量 (L/min)
+            },
+            {
+                "pressure": 0.50,           # 压力 (MPa) - 样本10: 严重泄漏
+                "supply_flow": 220.0,       # 供给流量 (L/min)
+                "demand_flow": 400.0        # 需求流量 (L/min)
             }
         ]
     }

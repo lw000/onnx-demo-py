@@ -129,16 +129,15 @@ def test_single_prediction() -> Optional[Dict[str, Any]]:
             # 适配 code/data/msg 响应格式
             code = result.get("code", -1)
             data = result.get("data", {})
-            status = data.get("status", "unknown")
             predicted_temp = data.get("result", {}).get("predicted_temperature", "N/A")
             inference_time = data.get("inference_time_ms", "N/A")
 
-            if code == 0 and status == "success":
+            if code == 0 and predicted_temp != "N/A":
                 print(f"\n[OK] 预测成功 - 预测温度: {predicted_temp}°C, 推理时间: {inference_time}ms")
+                return result
             else:
                 print(f"\n[ERROR] 预测失败: {result.get('msg', '未知错误')}")
-
-            return result
+                return result
         else:
             print(f"[ERROR] 请求失败: {response.text}")
             return None
@@ -207,23 +206,19 @@ def test_batch_prediction() -> Optional[Dict[str, Any]]:
             # 适配 code/data/msg 响应格式
             code = result.get("code", -1)
             data = result.get("data", {})
-            status = data.get("status", "unknown")
+            predictions = data.get("result", {}).get("predictions", [])
 
-            if code == 0 and status == "success":
-                batch_size = data.get("batch_size", 0)
-                throughput = data.get("throughput", 0)
-                predictions = data.get("result", {}).get("predictions", [])
-
+            if code == 0 and predictions:
+                batch_size = len(predictions)
                 print(f"\n[OK] 批量预测成功")
                 print(f"  批量大小: {batch_size}")
-                print(f"  吞吐量: {throughput} samples/s")
                 print(f"  预测结果:")
                 for pred in predictions:
                     print(f"    样本 {pred['index']}: {pred['predicted_temperature']}°C")
+                return result
             else:
                 print(f"\n[ERROR] 批量预测失败: {result.get('msg', '未知错误')}")
-
-            return result
+                return result
         else:
             print(f"[ERROR] 请求失败: {response.text}")
             return None
@@ -326,7 +321,8 @@ def test_validation() -> None:
                 result = response.json()
                 code = result.get("code", -1)
                 data = result.get("data", {})
-                actual_status = data.get("status", "unknown")
+                # API返回code=0表示成功，无需检查status字段
+                actual_status = "success" if code == 0 else "error"
             else:
                 actual_status = "error"
 
@@ -413,17 +409,16 @@ def test_scenario_predictions() -> None:
     print(f"\nPOST {API_ENDPOINT}")
     print(f"场景预测:")
 
-    for scenario_name, data in scenarios.items():
+    for scenario_name, scenario_data in scenarios.items():
         try:
-            response = requests.post(API_ENDPOINT, json=build_single_request(data))
+            response = requests.post(API_ENDPOINT, json=build_single_request(scenario_data))
 
             if response.status_code == 200:
                 result = response.json()
                 code = result.get("code", -1)
                 data_obj = result.get("data", {})
-                status = data_obj.get("status", "unknown")
 
-                if code == 0 and status == "success":
+                if code == 0:
                     predicted_temp = data_obj.get("result", {}).get("predicted_temperature", "N/A")
                     inference_time = data_obj.get("inference_time_ms", "N/A")
 
@@ -491,12 +486,13 @@ def test_batch_performance() -> None:
                 code = result.get("code", -1)
                 data = result.get("data", {})
 
-                if code == 0 and data.get("status") == "success":
+                if code == 0:
+                    predictions = data.get("result", {}).get("predictions", [])
                     api_inference_time = data.get("inference_time_ms", 0)
-                    throughput = data.get("throughput", 0)
+                    throughput = batch_size / (elapsed_ms / 1000) if elapsed_ms > 0 else 0
                     print(f"    响应时间: {elapsed_ms:.2f}ms")
-                    print(f"    API推理时间: {api_inference_time:.2f}ms")
                     print(f"    吞吐量: {throughput:.2f} samples/s")
+                    print(f"    成功预测: {len(predictions)}/{batch_size}")
                 else:
                     print(f"    [ERROR] {result.get('msg', '未知错误')}")
             else:
@@ -543,8 +539,7 @@ def test_high_concurrency() -> None:
             if response.status_code == 200:
                 result = response.json()
                 code = result.get("code", -1)
-                data = result.get("data", {})
-                if code == 0 and data.get("status") == "success":
+                if code == 0:
                     success_count += 1
 
             times.append(elapsed_ms)

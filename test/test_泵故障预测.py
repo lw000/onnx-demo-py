@@ -53,20 +53,21 @@ def test_single_prediction():
         print(f"响应状态: {response.status_code}")
         print(f"响应内容: {result}")
         
-        # 解析响应
-        status = result.get("status", "unknown")
-        if status == "success":
-            data = result.get("result", {})
-            predicted_class = data.get("predicted_class", "N/A")
-            probabilities = data.get("probabilities", {})
-            print(f"\n✓ 预测成功!")
+        # 解析响应 - API返回 code: 0 表示成功，数据在 result.data.result 中
+        code = result.get("code", -1)
+        if code == 0:
+            data = result.get("data", {})
+            result_data = data.get("result", {})
+            predicted_class = result_data.get("predicted_class", "N/A")
+            probabilities = result_data.get("probabilities", {})
+            print(f"\n[PASS] 预测成功!")
             print(f"  预测类别: {predicted_class}")
             print(f"  各类别概率:")
             for cls, prob in probabilities.items():
                 print(f"    - {cls}: {prob:.4f} ({prob*100:.2f}%)")
             return True
         else:
-            print(f"\n✗ 预测失败: {result.get('message', '未知错误')}")
+            print(f"\n[FAIL] 预测失败: {result.get('msg', '未知错误')}")
             return False
     except requests.exceptions.RequestException as e:
         print(f"\n✗ 请求失败: {e}")
@@ -162,11 +163,16 @@ def test_batch_prediction():
         print(f"响应状态: {response.status_code}")
         print(f"响应内容: {result}")
         
-        status = result.get("status", "unknown")
-        if status == "success":
-            data = result.get("result", {})
-            predictions = data.get("predictions", [])
-            print(f"\n✓ 批量预测成功! 共 {len(predictions)} 条结果")
+        # API返回 code: 0 表示成功，数据在 data.result.predictions
+        code = result.get("code", -1)
+        if code == 0:
+            resp_data = result.get("data", {})
+            result_data = resp_data.get("result", {})
+            predictions = result_data.get("predictions", [])
+            inference_time = resp_data.get("inference_time_ms", 0)
+            batch_size = len(predictions)
+            throughput = (batch_size / inference_time * 1000) if inference_time > 0 else 0
+            print(f"\n[PASS] 批量预测成功! 共 {len(predictions)} 条结果")
             for pred in predictions:
                 idx = pred.get("index", "?")
                 pred_class = pred.get("predicted_class", "N/A")
@@ -177,11 +183,11 @@ def test_batch_prediction():
                 print(f"    概率分布: ", end="")
                 print(", ".join([f"{k}={v:.3f}" for k, v in probs.items()]))
             print(f"\n性能指标:")
-            print(f"  推理时间: {result.get('inference_time_ms', 'N/A')} ms")
-            print(f"  吞吐量: {result.get('throughput', 'N/A')} req/s")
+            print(f"  推理时间: {inference_time} ms")
+            print(f"  吞吐量: {throughput:.2f} samples/s")
             return True
         else:
-            print(f"\n✗ 批量预测失败: {result.get('message', '未知错误')}")
+            print(f"\n[FAIL] 批量预测失败: {result.get('msg', '未知错误')}")
             return False
     except requests.exceptions.RequestException as e:
         print(f"\n✗ 请求失败: {e}")
@@ -253,13 +259,13 @@ def test_input_validation():
                 timeout=TIMEOUT
             )
             result = response.json()
-            status = result.get("status", "unknown")
-            if status == "success":
-                print(f"  ⚠ 未检测到异常 (可能需要后端验证)")
+            code = result.get("code", -1)
+            if code == 0:
+                print(f"  [WARN] 未检测到异常 (可能需要后端验证)")
             else:
-                print(f"  ✓ 正确拒绝: {result.get('message', result)}")
+                print(f"  [PASS] 正确拒绝: {result.get('msg', result)}")
         except requests.exceptions.RequestException as e:
-            print(f"  ✗ 请求异常: {e}")
+            print(f"  [ERROR] 请求异常: {e}")
     
     return True
 
@@ -333,12 +339,14 @@ def test_failure_scenarios():
                 timeout=TIMEOUT
             )
             result = response.json()
-            status = result.get("status", "unknown")
+            # API返回 code: 0 表示成功
+            code = result.get("code", -1)
             
-            if status == "success":
-                data = result.get("result", {})
-                pred_class = data.get("predicted_class", "N/A")
-                probs = data.get("probabilities", {})
+            if code == 0:
+                resp_data = result.get("data", {})
+                result_data = resp_data.get("result", {})
+                pred_class = result_data.get("predicted_class", "N/A")
+                probs = result_data.get("probabilities", {})
                 max_cls = max(probs, key=probs.get)
                 max_prob = probs.get(max_cls, 0)
                 print(f"  预测: {pred_class} (置信度: {max_prob*100:.2f}%)")
@@ -434,7 +442,7 @@ def main():
     
     # 检查服务器
     if not check_server():
-        print("\n⚠ 服务器不可用，请确保服务已启动 (http://127.0.0.1:9080)")
+        print("\n[!] 服务器不可用，请确保服务已启动 (http://127.0.0.1:9080)")
         print("按 Enter 键继续测试...")
         input()
     
@@ -451,7 +459,7 @@ def main():
     print("测试汇总")
     print("=" * 60)
     for name, passed in results:
-        status = "✓ 通过" if passed else "✗ 失败"
+        status = "[PASS]" if passed else "[FAIL]"
         print(f"  {name}: {status}")
     
     total = len(results)

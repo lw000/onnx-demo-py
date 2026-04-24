@@ -1,0 +1,22 @@
+特征顺序说明 (用于C++推理):
+
+0: pm10_s0
+1: pm10_s1
+2: pm10_s2
+3: pm10_s3
+4: pm10_lag1_s0
+5: pm10_lag1_s1
+6: pm10_lag1_s2
+7: pm10_lag1_s3
+8: pm10_lag2_s0
+9: pm10_lag2_s1
+10: pm10_lag2_s2
+11: pm10_lag2_s3
+12: pm10_lag3_s0
+13: pm10_lag3_s1
+14: pm10_lag3_s2
+15: pm10_lag3_s3
+16: wind_speed
+17: humidity
+18: temp
+19: machine_on
